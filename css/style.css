@@ -104,7 +104,11 @@ body {
 }
 
 .field-placa {
-  flex: 0 0 155px;
+  flex: 0 1 130px;
+}
+
+.field-valor {
+  flex: 1 1 130px;
 }
 
 .placa-input {
