@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a1830">
+<title>Anotações Guincho</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <defs>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></symbol>
+    <symbol id="icon-bar-chart" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></symbol>
+    <symbol id="icon-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></symbol>
+    <symbol id="icon-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></symbol>
+    <symbol id="icon-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></symbol>
+  </defs>
+</svg>
+
+<header class="app-header">
+  <img class="logo" src="images/logo-jbatista-completo.png" alt="J Batista">
+  <h1>Anotações Guincho</h1>
+</header>
+
+<main id="view-nova" class="view">
+  <form id="form-registro" autocomplete="off">
+    <input type="hidden" id="editingId" value="">
+
+    <fieldset class="field segurado-tipo">
+      <legend>Tipo</legend>
+      <label class="radio">
+        <input type="radio" name="tipoSegurado" value="seguradora" checked>
+        <span>Seguradora</span>
+      </label>
+      <label class="radio">
+        <input type="radio" name="tipoSegurado" value="particular">
+        <span>Particular</span>
+      </label>
+    </fieldset>
+
+    <label class="field" id="campoSeguradoraSelect">
+      <span>Seguradora</span>
+      <select id="seguradoSelect" required>
+        <option value="">Selecione...</option>
+      </select>
+    </label>
+
+    <label class="field" id="campoClienteNome" hidden>
+      <span>Nome do cliente</span>
+      <input type="text" id="clienteNome" list="clientesList" placeholder="Digite o nome do cliente">
+      <datalist id="clientesList"></datalist>
+    </label>
+
+    <div class="row">
+      <label class="field field-placa">
+        <span>Placa</span>
+        <input type="text" id="placaVeiculo" class="uppercase placa-input" placeholder="ABC1D23" maxlength="8">
+      </label>
+      <label class="field field-grow">
+        <span>Data e hora</span>
+        <input type="datetime-local" id="dataHora" required>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Valor do frete</span>
+      <div class="money-input">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorFrete" inputmode="numeric" placeholder="0,00" required>
+      </div>
+    </label>
+
+    <div class="row field-autocomplete" id="grupoOrigem">
+      <label class="field field-grow">
+        <span>Onde pegou</span>
+        <input type="text" id="localOrigem" placeholder="Rua, cidade..." autocomplete="off">
+      </label>
+      <label class="field field-num">
+        <span>Nº</span>
+        <input type="text" id="localOrigemNumero" placeholder="opc." inputmode="numeric">
+      </label>
+      <div class="autocomplete-status" id="statusOrigem"></div>
+      <div class="autocomplete-lista" id="listaOrigem" hidden></div>
+    </div>
+
+    <div class="row field-autocomplete" id="grupoDestino">
+      <label class="field field-grow">
+        <span>Onde deixou</span>
+        <input type="text" id="localDestino" placeholder="Rua, cidade..." autocomplete="off">
+      </label>
+      <label class="field field-num">
+        <span>Nº</span>
+        <input type="text" id="localDestinoNumero" placeholder="opc." inputmode="numeric">
+      </label>
+      <div class="autocomplete-status" id="statusDestino"></div>
+      <div class="autocomplete-lista" id="listaDestino" hidden></div>
+    </div>
+
+    <label class="field">
+      <span>Descrição <small>(opcional)</small></span>
+      <textarea id="descricao" rows="2" placeholder="Detalhes do serviço..."></textarea>
+    </label>
+
+    <button type="submit" class="btn-primary" id="btnSalvar">Salvar serviço</button>
+    <button type="button" class="btn-secondary" id="btnCancelarEdicao" hidden>Cancelar edição</button>
+    <button type="button" class="btn-danger" id="btnExcluirRegistro" hidden>Excluir serviço</button>
+  </form>
+</main>
+
+<main id="view-lista" class="view" hidden>
+  <div class="lista-filtros">
+    <input type="search" id="buscaLista" placeholder="Buscar por nome ou descrição...">
+    <div class="filtros-linha">
+      <select id="periodoLista">
+        <option value="mesAtual" selected>Mês atual</option>
+        <option value="mesPassado">Mês passado</option>
+        <option value="tudo">Todo o período</option>
+        <option value="personalizado">Personalizado</option>
+      </select>
+      <select id="seguradoraLista">
+        <option value="">Todos</option>
+        <option value="__particular__">Particulares</option>
+      </select>
+    </div>
+    <div class="filtros-linha" id="linhaPersonalizadoLista" hidden>
+      <input type="date" id="dataDeLista">
+      <input type="date" id="dataAteLista">
+    </div>
+    <div class="filtros-linha">
+      <div class="money-input money-input-sm">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorMinLista" inputmode="numeric" placeholder="Valor mín.">
+      </div>
+      <div class="money-input money-input-sm">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorMaxLista" inputmode="numeric" placeholder="Valor máx.">
+      </div>
+    </div>
+  </div>
+  <div id="listaRegistros" class="lista-registros"></div>
+  <p id="listaVazia" class="vazio" hidden>Nenhum serviço registrado ainda.</p>
+</main>
+
+<main id="view-relatorio" class="view" hidden>
+  <div class="relatorio-filtros">
+    <div class="filtros-linha">
+      <select id="periodoRelatorio">
+        <option value="tudo">Todo o período</option>
+        <option value="mesAtual" selected>Mês atual</option>
+        <option value="mesPassado">Mês passado</option>
+        <option value="personalizado">Personalizado</option>
+      </select>
+      <select id="seguradoraRelatorio">
+        <option value="">Todos</option>
+        <option value="__particular__">Particulares</option>
+      </select>
+    </div>
+    <div class="filtros-linha" id="linhaPersonalizadoRelatorio" hidden>
+      <input type="date" id="dataDeRelatorio">
+      <input type="date" id="dataAteRelatorio">
+    </div>
+    <div class="filtros-linha">
+      <div class="money-input money-input-sm">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorMinRelatorio" inputmode="numeric" placeholder="Valor mín.">
+      </div>
+      <div class="money-input money-input-sm">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorMaxRelatorio" inputmode="numeric" placeholder="Valor máx.">
+      </div>
+    </div>
+  </div>
+  <div id="relatorioResumo" class="relatorio-resumo"></div>
+  <div class="relatorio-acoes">
+    <button type="button" id="btnGerarMensagem"><svg class="icon"><use href="#icon-message"></use></svg> Mensagem</button>
+    <button type="button" id="btnExportarExcel"><svg class="icon"><use href="#icon-download"></use></svg> Excel</button>
+  </div>
+  <div id="relatorioGrupos" class="relatorio-grupos"></div>
+  <p id="relatorioVazio" class="vazio" hidden>Nenhum serviço no período selecionado.</p>
+</main>
+
+<main id="view-dashboard" class="view" hidden>
+  <div class="dashboard-filtros">
+    <select id="periodoDashboard">
+      <option value="hoje">Hoje</option>
+      <option value="semana">Últimos 7 dias</option>
+      <option value="mes" selected>Mês atual</option>
+      <option value="mesPassado">Mês passado</option>
+      <option value="personalizado">Personalizado</option>
+    </select>
+    <div class="filtros-linha" id="linhaPersonalizadoDashboard" hidden>
+      <input type="date" id="dataDeDashboard">
+      <input type="date" id="dataAteDashboard">
+    </div>
+  </div>
+  <div id="dashboardStats" class="dashboard-stats"></div>
+  <div id="dashboardGrafico" class="dashboard-grafico"></div>
+  <div id="dashboardTipos" class="dashboard-tipos"></div>
+  <h2 class="dashboard-subtitulo">Por seguradora / cliente</h2>
+  <div id="dashboardRanking" class="dashboard-ranking"></div>
+  <p id="dashboardVazio" class="vazio" hidden>Nenhum serviço no período selecionado.</p>
+</main>
+
+<main id="view-seguradoras" class="view" hidden>
+  <form id="form-seguradora" class="row-seguradora">
+    <label class="field field-grow">
+      <span>Nome da seguradora</span>
+      <input type="text" id="novaSeguradoraNome" placeholder="Digite o nome" required>
+    </label>
+    <button type="submit" class="btn-add">Adicionar</button>
+  </form>
+  <div id="listaSeguradoras" class="lista-seguradoras"></div>
+  <p id="seguradorasVazio" class="vazio" hidden>Nenhuma seguradora cadastrada.</p>
+</main>
+
+<nav class="tabbar">
+  <button class="tab-btn active" data-view="nova">
+    <span class="tab-icon"><svg class="icon"><use href="#icon-plus"></use></svg></span>
+    <span>Nova</span>
+  </button>
+  <button class="tab-btn" data-view="lista">
+    <span class="tab-icon"><svg class="icon"><use href="#icon-list"></use></svg></span>
+    <span>Serviços</span>
+  </button>
+  <button class="tab-btn" data-view="dashboard">
+    <span class="tab-icon"><svg class="icon"><use href="#icon-bar-chart"></use></svg></span>
+    <span>Dashboard</span>
+  </button>
+  <button class="tab-btn" data-view="relatorio">
+    <span class="tab-icon"><svg class="icon"><use href="#icon-file-text"></use></svg></span>
+    <span>Relatório</span>
+  </button>
+  <button class="tab-btn" data-view="seguradoras">
+    <span class="tab-icon"><svg class="icon"><use href="#icon-shield"></use></svg></span>
+    <span>Seguradoras</span>
+  </button>
+</nav>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/xlsx-lite.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
