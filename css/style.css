@@ -104,7 +104,7 @@ body {
 }
 
 .field-placa {
-  flex: 0 1 130px;
+  flex: 0 0 150px;
 }
 
 .field-valor {
@@ -112,7 +112,7 @@ body {
 }
 
 .field-tipo {
-  flex: 0 1 130px;
+  flex: 0 0 150px;
 }
 
 .field-selecao {
