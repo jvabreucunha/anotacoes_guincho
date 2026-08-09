@@ -67,6 +67,14 @@
       <input type="text" id="placaVeiculo" class="uppercase placa-input" placeholder="ABC1D23" maxlength="8">
     </label>
 
+    <label class="field">
+      <span>Valor do frete</span>
+      <div class="money-input">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorFrete" inputmode="numeric" placeholder="0,00" required>
+      </div>
+    </label>
+
     <div class="row">
       <label class="field field-grow">
         <span>Data</span>
@@ -77,14 +85,6 @@
         <input type="time" id="horaRegistro" required>
       </label>
     </div>
-
-    <label class="field">
-      <span>Valor do frete</span>
-      <div class="money-input">
-        <span class="prefix">R$</span>
-        <input type="text" id="valorFrete" inputmode="numeric" placeholder="0,00" required>
-      </div>
-    </label>
 
     <div class="row field-autocomplete" id="grupoOrigem">
       <label class="field field-grow">

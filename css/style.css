@@ -349,17 +349,17 @@ button {
 
 .filtros-linha select,
 .filtros-linha input[type="date"] {
-  font-size: 14px;
-  padding: 9px 8px;
+  font-size: 16px;
+  padding: 9px 6px;
 }
 
 .money-input-sm input {
-  font-size: 14px;
+  font-size: 16px;
   padding: 9px 8px 9px 2px;
 }
 
 .money-input-sm .prefix {
-  font-size: 13px;
+  font-size: 14px;
   padding: 0 2px 0 10px;
 }
 
