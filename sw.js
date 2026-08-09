@@ -1,4 +1,4 @@
-const CACHE_NAME = 'guincho-cache-v11';
+const CACHE_NAME = 'guincho-cache-v12';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const APP_SHELL = [
   './css/style.css',
   './js/app.js',
   './js/xlsx-lite.js',
+  './js/vendor/chart.umd.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './images/logo-jbatista-completo.png',

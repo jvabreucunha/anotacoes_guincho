@@ -68,28 +68,42 @@
     return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   }
 
-  function agoraParaInputLocal() {
+  function agoraParaDataInput() {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+    return d.toISOString().slice(0, 10);
   }
 
-  function inputLocalParaIso(valorInput) {
-    // valorInput vem no formato "YYYY-MM-DDTHH:mm" já em horário local
-    return new Date(valorInput).toISOString();
+  function agoraParaHoraInput() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(11, 16);
   }
 
-  function isoParaInputLocal(iso) {
+  function dataHoraInputParaIso(dataValor, horaValor) {
+    // dataValor "YYYY-MM-DD", horaValor "HH:mm", ambos em horário local
+    if (!dataValor) return new Date().toISOString();
+    return new Date(`${dataValor}T${horaValor || '00:00'}`).toISOString();
+  }
+
+  function isoParaDataInput(iso) {
     const d = new Date(iso);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function isoParaHoraInput(iso) {
+    const d = new Date(iso);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(11, 16);
   }
 
   // ---------- Elementos ----------
 
   const form = document.getElementById('form-registro');
   const inputEditingId = document.getElementById('editingId');
-  const inputDataHora = document.getElementById('dataHora');
+  const inputDataRegistro = document.getElementById('dataRegistro');
+  const inputHoraRegistro = document.getElementById('horaRegistro');
   const inputPlacaVeiculo = document.getElementById('placaVeiculo');
   const inputValorFrete = document.getElementById('valorFrete');
   const inputLocalOrigem = document.getElementById('localOrigem');
@@ -176,7 +190,8 @@
     if (nome === 'relatorio') { popularFiltroSeguradora(seguradoraRelatorio); renderRelatorio(); }
     if (nome === 'seguradoras') renderListaSeguradoras();
     if (nome === 'nova' && !inputEditingId.value) {
-      inputDataHora.value = agoraParaInputLocal();
+      inputDataRegistro.value = agoraParaDataInput();
+      inputHoraRegistro.value = agoraParaHoraInput();
     }
   }
 
@@ -323,7 +338,8 @@
   function limparFormulario() {
     form.reset();
     inputEditingId.value = '';
-    inputDataHora.value = agoraParaInputLocal();
+    inputDataRegistro.value = agoraParaDataInput();
+    inputHoraRegistro.value = agoraParaHoraInput();
     esconderSugestoes(listaOrigem);
     esconderSugestoes(listaDestino);
     btnCancelarEdicao.hidden = true;
@@ -337,7 +353,8 @@
     if (!registro) return;
 
     inputEditingId.value = registro.id;
-    inputDataHora.value = isoParaInputLocal(registro.dataHora);
+    inputDataRegistro.value = isoParaDataInput(registro.dataHora);
+    inputHoraRegistro.value = isoParaHoraInput(registro.dataHora);
     inputPlacaVeiculo.value = registro.placa || '';
     inputValorFrete.value = registro.valorFrete ? formatarCentavos(Math.round(registro.valorFrete * 100)) : '';
     inputLocalOrigem.value = registro.localOrigem || '';
@@ -373,7 +390,7 @@
     const id = inputEditingId.value || gerarId();
     const dados = {
       id,
-      dataHora: inputLocalParaIso(inputDataHora.value),
+      dataHora: dataHoraInputParaIso(inputDataRegistro.value, inputHoraRegistro.value),
       placa: inputPlacaVeiculo.value.trim().toUpperCase(),
       valorFrete: valorMascaradoParaNumero(inputValorFrete.value),
       localOrigem: inputLocalOrigem.value.trim(),
@@ -818,61 +835,41 @@
     return dias;
   }
 
-  // Caminho SVG de uma barra com cantos arredondados só no topo (base reta, encostada no eixo).
-  function caminhoBarraArredondada(x, y, largura, altura, raio) {
-    const r = Math.min(raio, largura / 2, altura);
-    const base = y + altura;
-    if (r <= 0.5) {
-      return `M${x},${base} L${x},${y} L${x + largura},${y} L${x + largura},${base} Z`;
-    }
-    return `M${x},${base} L${x},${y + r} Q${x},${y} ${x + r},${y} `
-      + `L${x + largura - r},${y} Q${x + largura},${y} ${x + largura},${y + r} L${x + largura},${base} Z`;
+  // ---------- Gráficos do dashboard (Chart.js) ----------
+
+  let chartFaturamento = null;
+  let chartTipos = null;
+  let chartRanking = null;
+
+  function corDoTema(variavel) {
+    return getComputedStyle(document.documentElement).getPropertyValue(variavel).trim();
   }
 
-  // Monta o SVG do gráfico "faturamento por dia" e devolve junto o índice em destaque por padrão.
-  function montarGraficoSvg(dias, totais, indiceDestaque) {
-    const barW = 14, gap = 5, plotH = 92, topPad = 6, labelH = 16;
-    const n = dias.length;
-    const totalW = n * (barW + gap) - gap;
-    const totalH = topPad + plotH + labelH;
-    const maiorValor = Math.max(...totais, 1);
-    const usaDiaDaSemana = n <= 8;
-
-    const grade = [0, 1].map(frac => {
-      const y = topPad + plotH * (1 - frac);
-      return `<line class="grade" x1="0" y1="${y}" x2="${totalW}" y2="${y}"></line>`;
-    }).join('');
-
-    let marcas = '';
-    dias.forEach((d, i) => {
-      const valor = totais[i];
-      const alturaUtil = valor > 0 ? Math.max((valor / maiorValor) * plotH, 3) : 1;
-      const x = i * (barW + gap);
-      const yTopo = topPad + plotH - alturaUtil;
-      const destaque = i === indiceDestaque ? ' destaque' : '';
-      const dataLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const valorLabel = formatarMoeda(valor);
-      const mostraRotulo = usaDiaDaSemana || d.getDate() === 1 || d.getDate() % 5 === 0 || i === n - 1;
-      const rotuloEixo = !mostraRotulo ? ''
-        : usaDiaDaSemana ? d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
-        : String(d.getDate());
-
-      marcas += `<path class="barra${destaque}" data-index="${i}" d="${caminhoBarraArredondada(x, yTopo, barW, alturaUtil, 4)}"></path>`;
-      marcas += `<rect class="barra-hit" data-index="${i}" data-data-label="${escapeHtml(dataLabel)}" data-valor-label="${escapeHtml(valorLabel)}" `
-        + `x="${x - gap / 2}" y="0" width="${barW + gap}" height="${totalH}"></rect>`;
-      if (rotuloEixo) {
-        marcas += `<text class="eixo-label" x="${x + barW / 2}" y="${totalH - 3}" text-anchor="middle">${escapeHtml(rotuloEixo)}</text>`;
-      }
-    });
-
-    return `<svg class="grafico-svg" viewBox="0 0 ${totalW} ${totalH}">${grade}${marcas}</svg>`;
-  }
+  // Plugin do Chart.js: escreve o valor de cada barra do ranking ao lado dela.
+  const pluginRotuloRanking = {
+    id: 'rotuloRanking',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      ctx.save();
+      ctx.fillStyle = corDoTema('--text-dark');
+      ctx.font = "700 12px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      meta.data.forEach((barra, i) => {
+        const valor = chart.data.datasets[0].data[i];
+        ctx.fillText(formatarMoeda(valor), barra.x + 6, barra.y);
+      });
+      ctx.restore();
+    },
+  };
 
   function renderGraficoDashboard(registros) {
     const dias = periodoDashboard.value === 'hoje' ? [] : intervaloDiasDashboard();
     if (!dias.length) {
       dashboardGrafico.hidden = true;
       dashboardGrafico.innerHTML = '';
+      if (chartFaturamento) { chartFaturamento.destroy(); chartFaturamento = null; }
       return;
     }
 
@@ -882,12 +879,19 @@
 
     const agora = new Date();
     const hojeStr = agora.toDateString();
-    let indiceInicial = dias.findIndex(d => d.toDateString() === hojeStr);
-    const temHoje = indiceInicial !== -1;
-    if (!temHoje) indiceInicial = totais.indexOf(Math.max(...totais));
+    const indiceHoje = dias.findIndex(d => d.toDateString() === hojeStr);
+    const temHoje = indiceHoje !== -1;
+    const usaDiaDaSemana = dias.length <= 8;
 
-    const svg = montarGraficoSvg(dias, totais, indiceInicial);
-    const dataLabelInicial = dias[indiceInicial].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const corBase = corDoTema('--chart-navy');
+    const corDestaque = corDoTema('--gold-500');
+    const corGrade = corDoTema('--chart-grid');
+    const corMuted = corDoTema('--text-muted');
+
+    const rotulos = dias.map(d => usaDiaDaSemana
+      ? d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
+      : String(d.getDate()));
+    const cores = dias.map((d, i) => i === indiceHoje ? corDestaque : corBase);
 
     dashboardGrafico.hidden = false;
     dashboardGrafico.innerHTML = `
@@ -895,17 +899,134 @@
         <span class="grafico-titulo">Faturamento por dia</span>
         ${temHoje ? '<span class="grafico-legenda"><span class="ponto"></span>hoje</span>' : ''}
       </div>
-      ${svg}
-      <div class="grafico-caption"><strong>${escapeHtml(dataLabelInicial)}</strong> — ${escapeHtml(formatarMoeda(totais[indiceInicial]))}</div>
+      <div class="grafico-canvas-wrap"><canvas id="canvasFaturamento"></canvas></div>
+      <div class="grafico-caption" id="graficoCaption">&nbsp;</div>
     `;
 
-    dashboardGrafico.querySelectorAll('.barra-hit').forEach(hit => {
-      hit.addEventListener('click', () => {
-        const idx = hit.dataset.index;
-        dashboardGrafico.querySelectorAll('.barra').forEach(b => b.classList.toggle('destaque', b.dataset.index === idx));
-        const legenda = dashboardGrafico.querySelector('.grafico-caption');
-        if (legenda) legenda.innerHTML = `<strong>${escapeHtml(hit.dataset.dataLabel)}</strong> — ${escapeHtml(hit.dataset.valorLabel)}`;
-      });
+    const mostrarCaption = (i) => {
+      const label = dias[i].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      document.getElementById('graficoCaption').innerHTML =
+        `<strong>${escapeHtml(label)}</strong> — ${escapeHtml(formatarMoeda(totais[i]))}`;
+    };
+
+    const ctx = document.getElementById('canvasFaturamento').getContext('2d');
+    if (chartFaturamento) chartFaturamento.destroy();
+    chartFaturamento = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: rotulos,
+        datasets: [{ data: totais, backgroundColor: cores, borderRadius: 4, borderSkipped: false, maxBarThickness: 22 }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 200 },
+        onClick: (evt, elems) => { if (elems.length) mostrarCaption(elems[0].index); },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => dias[items[0].dataIndex].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+              label: (item) => formatarMoeda(item.parsed.y),
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { color: corMuted, font: { size: 10 }, autoSkip: true, maxRotation: 0 } },
+          y: { display: false, beginAtZero: true, grid: { color: corGrade } },
+        },
+      },
+    });
+
+    mostrarCaption(temHoje ? indiceHoje : totais.indexOf(Math.max(...totais)));
+  }
+
+  function renderTiposDashboard(registros, total) {
+    const totalSeguradora = registros.filter(r => r.tipo === 'seguradora').reduce((s, r) => s + r.valorFrete, 0);
+    const totalParticular = registros.filter(r => r.tipo === 'particular').reduce((s, r) => s + r.valorFrete, 0);
+    const pctSeguradora = total > 0 ? Math.round((totalSeguradora / total) * 100) : 0;
+    const pctParticular = total > 0 ? Math.round((totalParticular / total) * 100) : 0;
+
+    const corSeguradora = corDoTema('--chart-navy');
+    const corParticular = corDoTema('--gold-500');
+
+    dashboardTipos.innerHTML = `
+      <div class="tipos-chart-wrap"><canvas id="canvasTipos"></canvas></div>
+      <div class="tipos-legenda">
+        <div class="tipos-legenda-item">
+          <span class="ponto" style="background:${corSeguradora}"></span>
+          <span class="tipos-legenda-nome">Seguradora</span>
+          <span class="tipos-legenda-pct">${pctSeguradora}%</span>
+          <span class="tipos-legenda-valor">${formatarMoeda(totalSeguradora)}</span>
+        </div>
+        <div class="tipos-legenda-item">
+          <span class="ponto" style="background:${corParticular}"></span>
+          <span class="tipos-legenda-nome">Particular</span>
+          <span class="tipos-legenda-pct">${pctParticular}%</span>
+          <span class="tipos-legenda-valor">${formatarMoeda(totalParticular)}</span>
+        </div>
+      </div>
+    `;
+
+    const ctx = document.getElementById('canvasTipos').getContext('2d');
+    if (chartTipos) chartTipos.destroy();
+    chartTipos = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Seguradora', 'Particular'],
+        datasets: [{ data: [totalSeguradora, totalParticular], backgroundColor: [corSeguradora, corParticular], borderColor: '#fff', borderWidth: 2 }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (item) => `${item.label}: ${formatarMoeda(item.parsed)}` } },
+        },
+      },
+    });
+  }
+
+  function renderRankingDashboard(registros) {
+    const grupos = agruparPorNome(registros).slice(0, 8);
+
+    if (!grupos.length) {
+      dashboardRanking.innerHTML = '';
+      if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
+      return;
+    }
+
+    const altura = grupos.length * 34 + 16;
+    dashboardRanking.innerHTML = `<div class="ranking-chart-wrap" style="height:${altura}px"><canvas id="canvasRanking"></canvas></div>`;
+
+    const cor = corDoTema('--chart-navy');
+    const corTexto = corDoTema('--text-dark');
+    const maiorValor = grupos[0].total;
+
+    const ctx = document.getElementById('canvasRanking').getContext('2d');
+    if (chartRanking) chartRanking.destroy();
+    chartRanking = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: grupos.map(g => g.nome),
+        datasets: [{ data: grupos.map(g => g.total), backgroundColor: cor, borderRadius: 4, borderSkipped: false, maxBarThickness: 20 }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 200 },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (item) => formatarMoeda(item.parsed.x) } },
+        },
+        scales: {
+          x: { display: false, suggestedMax: maiorValor * 1.35 },
+          y: { grid: { display: false }, border: { display: false }, ticks: { color: corTexto, font: { size: 12, weight: '600' } } },
+        },
+      },
+      plugins: [pluginRotuloRanking],
     });
   }
 
@@ -919,6 +1040,9 @@
       dashboardGrafico.innerHTML = '';
       dashboardTipos.innerHTML = '';
       dashboardRanking.innerHTML = '';
+      if (chartFaturamento) { chartFaturamento.destroy(); chartFaturamento = null; }
+      if (chartTipos) { chartTipos.destroy(); chartTipos = null; }
+      if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
       return;
     }
 
@@ -932,36 +1056,8 @@
     `;
 
     renderGraficoDashboard(registros);
-
-    const totalSeguradora = registros.filter(r => r.tipo === 'seguradora').reduce((s, r) => s + r.valorFrete, 0);
-    const totalParticular = registros.filter(r => r.tipo === 'particular').reduce((s, r) => s + r.valorFrete, 0);
-    const maiorTipo = Math.max(totalSeguradora, totalParticular, 1);
-    const pctSeguradora = total > 0 ? Math.round((totalSeguradora / total) * 100) : 0;
-    const pctParticular = total > 0 ? Math.round((totalParticular / total) * 100) : 0;
-    dashboardTipos.innerHTML = `
-      <div class="tipo-card seguradora">
-        <div class="tipo-nome"><span>Seguradora</span><span class="tipo-pct">${pctSeguradora}%</span></div>
-        <div class="tipo-barra-fundo"><div class="tipo-barra" style="width:${(totalSeguradora / maiorTipo) * 100}%"></div></div>
-        <div class="tipo-valor">${formatarMoeda(totalSeguradora)}</div>
-      </div>
-      <div class="tipo-card particular">
-        <div class="tipo-nome"><span>Particular</span><span class="tipo-pct">${pctParticular}%</span></div>
-        <div class="tipo-barra-fundo"><div class="tipo-barra" style="width:${(totalParticular / maiorTipo) * 100}%"></div></div>
-        <div class="tipo-valor">${formatarMoeda(totalParticular)}</div>
-      </div>
-    `;
-
-    const grupos = agruparPorNome(registros).slice(0, 8);
-    const maiorGrupo = grupos.length ? grupos[0].total : 1;
-    dashboardRanking.innerHTML = grupos.map(g => `
-      <div class="ranking-item">
-        <div class="ranking-topo">
-          <span>${escapeHtml(g.nome)}</span>
-          <span>${formatarMoeda(g.total)}</span>
-        </div>
-        <div class="ranking-barra-fundo"><div class="ranking-barra" style="width:${(g.total / maiorGrupo) * 100}%"></div></div>
-      </div>
-    `).join('');
+    renderTiposDashboard(registros, total);
+    renderRankingDashboard(registros);
   }
 
   periodoDashboard.addEventListener('change', () => {

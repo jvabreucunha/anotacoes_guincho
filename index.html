@@ -62,14 +62,19 @@
       <datalist id="clientesList"></datalist>
     </label>
 
+    <label class="field">
+      <span>Placa</span>
+      <input type="text" id="placaVeiculo" class="uppercase placa-input" placeholder="ABC1D23" maxlength="8">
+    </label>
+
     <div class="row">
-      <label class="field field-placa">
-        <span>Placa</span>
-        <input type="text" id="placaVeiculo" class="uppercase placa-input" placeholder="ABC1D23" maxlength="8">
-      </label>
       <label class="field field-grow">
-        <span>Data e hora</span>
-        <input type="datetime-local" id="dataHora" required>
+        <span>Data</span>
+        <input type="date" id="dataRegistro" required>
+      </label>
+      <label class="field field-hora">
+        <span>Hora</span>
+        <input type="time" id="horaRegistro" required>
       </label>
     </div>
 
@@ -250,6 +255,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="js/xlsx-lite.js"></script>
+<script src="js/vendor/chart.umd.min.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

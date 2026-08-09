@@ -107,6 +107,10 @@ body {
   flex: 0 0 155px;
 }
 
+.field-hora {
+  flex: 0 0 110px;
+}
+
 .placa-input {
   font-size: 20px;
   font-weight: 700;
@@ -129,7 +133,8 @@ body {
 
 input[type="text"],
 input[type="number"],
-input[type="datetime-local"],
+input[type="date"],
+input[type="time"],
 input[type="search"],
 select,
 textarea {
@@ -767,34 +772,9 @@ button {
   display: inline-block;
 }
 
-.grafico-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;
-}
-
-.grafico-svg .barra {
-  fill: var(--chart-navy);
-}
-
-.grafico-svg .barra.destaque {
-  fill: var(--gold-500);
-}
-
-.grafico-svg .barra-hit {
-  fill: transparent;
-}
-
-.grafico-svg .grade {
-  stroke: var(--chart-grid);
-  stroke-width: 1;
-}
-
-.grafico-svg .eixo-label {
-  fill: var(--text-muted);
-  font-size: 9.5px;
-  font-family: inherit;
+.grafico-canvas-wrap {
+  position: relative;
+  height: 140px;
 }
 
 .grafico-caption {
@@ -812,58 +792,64 @@ button {
 
 .dashboard-tipos {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.tipo-card {
-  flex: 1;
+  align-items: center;
+  gap: 16px;
   background: #fff;
   border: 2px solid var(--line);
   border-radius: 12px;
-  padding: 12px;
+  padding: 14px;
+  margin-bottom: 20px;
 }
 
-.tipo-card .tipo-nome {
+.dashboard-tipos:empty {
+  display: none;
+}
+
+.tipos-chart-wrap {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+}
+
+.tipos-legenda {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tipos-legenda-item {
+  min-width: 0;
+}
+
+.tipos-legenda-item .ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.tipos-legenda-nome {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin: 0 6px;
 }
 
-.tipo-card .tipo-pct {
+.tipos-legenda-pct {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-dark);
 }
 
-.tipo-card .tipo-barra-fundo {
-  background: var(--bg-light);
-  border-radius: 999px;
-  height: 8px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.tipo-card .tipo-barra {
-  height: 100%;
-  border-radius: 999px;
-}
-
-.tipo-card.seguradora .tipo-barra {
-  background: var(--chart-navy);
-}
-
-.tipo-card.particular .tipo-barra {
-  background: var(--gold-500);
-}
-
-.tipo-card .tipo-valor {
+.tipos-legenda-valor {
+  display: block;
   font-size: 15px;
   font-weight: 800;
+  margin-top: 2px;
 }
 
 .dashboard-subtitulo {
@@ -871,39 +857,12 @@ button {
   margin: 0 0 10px;
 }
 
-.dashboard-ranking {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ranking-item {
+.ranking-chart-wrap {
+  position: relative;
   background: #fff;
   border: 2px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 12px;
-}
-
-.ranking-item .ranking-topo {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.ranking-item .ranking-barra-fundo {
-  background: var(--bg-light);
-  border-radius: 999px;
-  height: 6px;
-  overflow: hidden;
-}
-
-.ranking-item .ranking-barra {
-  height: 100%;
-  background: var(--chart-navy);
-  border-radius: 999px;
 }
 
 @media (min-width: 600px) {
