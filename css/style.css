@@ -42,31 +42,31 @@ body {
 .app-header {
   background: var(--navy-900);
   color: #fff;
-  padding: 10px 16px;
+  padding: 7px 16px;
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .app-header img.logo {
-  height: 32px;
+  height: 26px;
   width: auto;
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-align: center;
 }
 
 .view {
-  padding: 12px 14px;
+  padding: 10px 14px;
   max-width: 560px;
   margin: 0 auto;
 }
@@ -75,7 +75,7 @@ body {
 
 .field {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   font-weight: 600;
 }
 
@@ -85,8 +85,8 @@ body {
 
 .field span {
   display: block;
-  margin-bottom: 4px;
-  font-size: 14px;
+  margin-bottom: 3px;
+  font-size: 13px;
 }
 
 .row {
@@ -105,10 +105,6 @@ body {
 
 .field-placa {
   flex: 0 0 155px;
-}
-
-.field-hora {
-  flex: 0 0 110px;
 }
 
 .placa-input {
@@ -140,7 +136,7 @@ select,
 textarea {
   width: 100%;
   font-size: 17px;
-  padding: 11px 12px;
+  padding: 9px 12px;
   border: 2px solid var(--line);
   border-radius: 10px;
   background: var(--bg-white);
@@ -190,24 +186,57 @@ input[type="number"] {
   min-width: 0;
   border: none;
   border-radius: 0;
-  padding: 11px 12px 11px 4px;
+  padding: 9px 12px 9px 4px;
 }
 
 .money-input input:focus {
   border: none;
 }
 
+.datahora-input {
+  display: flex;
+  align-items: stretch;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-white);
+  overflow: hidden;
+}
+
+.datahora-input:focus-within {
+  border-color: var(--navy-700);
+}
+
+.datahora-input input {
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  padding: 9px 12px;
+}
+
+.datahora-input input:focus {
+  border: none;
+}
+
+.datahora-input input[type="date"] {
+  flex: 3;
+}
+
+.datahora-input input[type="time"] {
+  flex: 2;
+  border-left: 2px solid var(--line);
+}
+
 fieldset.segurado-tipo {
   border: none;
   padding: 0;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
 }
 
 fieldset.segurado-tipo legend {
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   padding: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .radio {
@@ -301,12 +330,12 @@ button {
 
 .btn-primary, .btn-secondary, .btn-danger {
   width: 100%;
-  padding: 13px;
-  font-size: 18px;
+  padding: 11px;
+  font-size: 17px;
   font-weight: 700;
   border-radius: 12px;
   border: none;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .btn-primary {

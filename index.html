@@ -62,29 +62,27 @@
       <datalist id="clientesList"></datalist>
     </label>
 
-    <label class="field">
-      <span>Placa</span>
-      <input type="text" id="placaVeiculo" class="uppercase placa-input" placeholder="ABC1D23" maxlength="8">
-    </label>
-
-    <label class="field">
-      <span>Valor do frete</span>
-      <div class="money-input">
-        <span class="prefix">R$</span>
-        <input type="text" id="valorFrete" inputmode="numeric" placeholder="0,00" required>
-      </div>
-    </label>
-
     <div class="row">
-      <label class="field field-grow">
-        <span>Data</span>
-        <input type="date" id="dataRegistro" required>
+      <label class="field field-placa">
+        <span>Placa</span>
+        <input type="text" id="placaVeiculo" class="uppercase placa-input" placeholder="ABC1D23" maxlength="8">
       </label>
-      <label class="field field-hora">
-        <span>Hora</span>
-        <input type="time" id="horaRegistro" required>
+      <label class="field field-grow">
+        <span>Valor do frete</span>
+        <div class="money-input">
+          <span class="prefix">R$</span>
+          <input type="text" id="valorFrete" inputmode="numeric" placeholder="0,00" required>
+        </div>
       </label>
     </div>
+
+    <label class="field">
+      <span>Data e hora</span>
+      <div class="datahora-input">
+        <input type="date" id="dataRegistro" required>
+        <input type="time" id="horaRegistro" required>
+      </div>
+    </label>
 
     <div class="row field-autocomplete" id="grupoOrigem">
       <label class="field field-grow">
