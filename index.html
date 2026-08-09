@@ -37,30 +37,28 @@
   <form id="form-registro" autocomplete="off">
     <input type="hidden" id="editingId" value="">
 
-    <fieldset class="field segurado-tipo">
-      <legend>Tipo</legend>
-      <label class="radio">
-        <input type="radio" name="tipoSegurado" value="seguradora" checked>
+    <div class="row">
+      <label class="field field-tipo">
+        <span>Tipo</span>
+        <select id="tipoSegurado">
+          <option value="seguradora">Seguradora</option>
+          <option value="particular">Particular</option>
+        </select>
+      </label>
+
+      <label class="field field-selecao" id="campoSeguradoraSelect">
         <span>Seguradora</span>
+        <select id="seguradoSelect" required>
+          <option value="">Selecione...</option>
+        </select>
       </label>
-      <label class="radio">
-        <input type="radio" name="tipoSegurado" value="particular">
-        <span>Particular</span>
+
+      <label class="field field-selecao" id="campoClienteNome" hidden>
+        <span>Nome do cliente</span>
+        <input type="text" id="clienteNome" list="clientesList" placeholder="Digite o nome do cliente">
+        <datalist id="clientesList"></datalist>
       </label>
-    </fieldset>
-
-    <label class="field" id="campoSeguradoraSelect">
-      <span>Seguradora</span>
-      <select id="seguradoSelect" required>
-        <option value="">Selecione...</option>
-      </select>
-    </label>
-
-    <label class="field" id="campoClienteNome" hidden>
-      <span>Nome do cliente</span>
-      <input type="text" id="clienteNome" list="clientesList" placeholder="Digite o nome do cliente">
-      <datalist id="clientesList"></datalist>
-    </label>
+    </div>
 
     <div class="row">
       <label class="field field-placa">
@@ -112,7 +110,7 @@
 
     <label class="field">
       <span>Descrição <small>(opcional)</small></span>
-      <textarea id="descricao" rows="2" placeholder="Detalhes do serviço..."></textarea>
+      <textarea id="descricao" rows="1" placeholder="Detalhes do serviço..."></textarea>
     </label>
 
     <button type="submit" class="btn-primary" id="btnSalvar">Salvar serviço</button>
@@ -200,12 +198,7 @@
       <option value="semana">Últimos 7 dias</option>
       <option value="mes" selected>Mês atual</option>
       <option value="mesPassado">Mês passado</option>
-      <option value="personalizado">Personalizado</option>
     </select>
-    <div class="filtros-linha" id="linhaPersonalizadoDashboard" hidden>
-      <input type="date" id="dataDeDashboard">
-      <input type="date" id="dataAteDashboard">
-    </div>
   </div>
   <div id="dashboardStats" class="dashboard-stats"></div>
   <div id="dashboardGrafico" class="dashboard-grafico"></div>

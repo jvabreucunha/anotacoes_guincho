@@ -110,6 +110,7 @@
   const inputLocalOrigemNumero = document.getElementById('localOrigemNumero');
   const inputLocalDestino = document.getElementById('localDestino');
   const inputLocalDestinoNumero = document.getElementById('localDestinoNumero');
+  const inputTipoSegurado = document.getElementById('tipoSegurado');
   const campoSeguradoraSelect = document.getElementById('campoSeguradoraSelect');
   const seguradoSelect = document.getElementById('seguradoSelect');
   const campoClienteNome = document.getElementById('campoClienteNome');
@@ -145,9 +146,6 @@
   const btnExportarExcel = document.getElementById('btnExportarExcel');
 
   const periodoDashboard = document.getElementById('periodoDashboard');
-  const linhaPersonalizadoDashboard = document.getElementById('linhaPersonalizadoDashboard');
-  const dataDeDashboard = document.getElementById('dataDeDashboard');
-  const dataAteDashboard = document.getElementById('dataAteDashboard');
   const dashboardStats = document.getElementById('dashboardStats');
   const dashboardGrafico = document.getElementById('dashboardGrafico');
   const dashboardTipos = document.getElementById('dashboardTipos');
@@ -202,7 +200,7 @@
   // ---------- Tipo de segurado (seguradora / particular) ----------
 
   function tipoSelecionado() {
-    return form.querySelector('input[name="tipoSegurado"]:checked').value;
+    return inputTipoSegurado.value;
   }
 
   function atualizarCampoNome() {
@@ -239,9 +237,7 @@
     datalistClientes.innerHTML = nomes.map(n => `<option value="${escapeHtml(n)}">`).join('');
   }
 
-  form.querySelectorAll('input[name="tipoSegurado"]').forEach(radio => {
-    radio.addEventListener('change', atualizarCampoNome);
-  });
+  inputTipoSegurado.addEventListener('change', atualizarCampoNome);
 
   // ---------- Filtro por seguradora (usado em Serviços e Relatório) ----------
 
@@ -361,7 +357,7 @@
     inputLocalOrigemNumero.value = registro.localOrigemNumero || '';
     inputLocalDestino.value = registro.localDestino || '';
     inputLocalDestinoNumero.value = registro.localDestinoNumero || '';
-    form.querySelector(`input[name="tipoSegurado"][value="${registro.tipo}"]`).checked = true;
+    inputTipoSegurado.value = registro.tipo;
     inputDescricao.value = registro.descricao || '';
 
     atualizarCampoNome();
@@ -795,11 +791,8 @@
         return d >= seteDiasAtras && d <= agora;
       });
     }
-    if (periodo === 'personalizado' && (!dataDeDashboard.value || !dataAteDashboard.value)) {
-      return [];
-    }
     const periodoEquivalente = periodo === 'mes' ? 'mesAtual' : periodo;
-    return getRegistros().filter(r => passaFiltroPeriodo(r.dataHora, periodoEquivalente, dataDeDashboard.value, dataAteDashboard.value));
+    return getRegistros().filter(r => passaFiltroPeriodo(r.dataHora, periodoEquivalente));
   }
 
   // Lista de dias (um por coluna do gráfico) correspondente ao período escolhido.
@@ -813,17 +806,6 @@
         const d = new Date(agora);
         d.setDate(d.getDate() - i);
         dias.push(d);
-      }
-      return dias;
-    }
-    if (periodo === 'personalizado') {
-      if (!dataDeDashboard.value || !dataAteDashboard.value) return [];
-      const fim = new Date(dataAteDashboard.value + 'T00:00:00');
-      const dias = [];
-      const cursor = new Date(dataDeDashboard.value + 'T00:00:00');
-      while (cursor <= fim && dias.length < 62) {
-        dias.push(new Date(cursor));
-        cursor.setDate(cursor.getDate() + 1);
       }
       return dias;
     }
@@ -1060,12 +1042,7 @@
     renderRankingDashboard(registros);
   }
 
-  periodoDashboard.addEventListener('change', () => {
-    linhaPersonalizadoDashboard.hidden = periodoDashboard.value !== 'personalizado';
-    renderDashboard();
-  });
-  dataDeDashboard.addEventListener('change', renderDashboard);
-  dataAteDashboard.addEventListener('change', renderDashboard);
+  periodoDashboard.addEventListener('change', renderDashboard);
 
   // ---------- Autocomplete de endereço (busca online via OpenStreetMap/Nominatim) ----------
   // Só funciona com internet disponível; sem conexão, o campo continua digitável normalmente.
