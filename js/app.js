@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = 'guincho_registros_v1';
   const STORAGE_KEY_SEGURADORAS = 'guincho_seguradoras_v1';
+  const STORAGE_KEY_CLIENTES = 'guincho_clientes_v1';
 
   // ---------- Persistência ----------
 
@@ -20,22 +21,49 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
   }
 
-  function getSeguradoras() {
+  function getClientes() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY_SEGURADORAS);
+      const raw = localStorage.getItem(STORAGE_KEY_CLIENTES);
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
-      console.error('Erro ao ler seguradoras', e);
+      console.error('Erro ao ler clientes', e);
       return [];
     }
   }
 
-  function setSeguradoras(lista) {
-    localStorage.setItem(STORAGE_KEY_SEGURADORAS, JSON.stringify(lista));
+  function setClientes(lista) {
+    localStorage.setItem(STORAGE_KEY_CLIENTES, JSON.stringify(lista));
   }
 
   function gerarId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // Antes existiam cadastros separados de "Seguradoras" e nomes de "Particulares" — agora
+  // é um único cadastro de Clientes. Na primeira execução após a atualização, junta os dois
+  // cadastros antigos (mais os nomes já usados em serviços) numa lista única, sem duplicar.
+  function migrarParaClientesUnificado() {
+    if (localStorage.getItem(STORAGE_KEY_CLIENTES) !== null) return;
+
+    const nomesVistos = new Set();
+    const clientes = [];
+    const adicionar = (nome) => {
+      const chave = (nome || '').trim().toLowerCase();
+      if (!chave || nomesVistos.has(chave)) return;
+      nomesVistos.add(chave);
+      clientes.push({ id: gerarId(), nome: nome.trim() });
+    };
+
+    let seguradorasAntigas = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_SEGURADORAS);
+      seguradorasAntigas = raw ? JSON.parse(raw) : [];
+    } catch (e) { /* ignora cadastro antigo corrompido */ }
+    seguradorasAntigas.forEach(s => adicionar(s.nome));
+
+    getRegistros().forEach(r => adicionar(r.nome));
+
+    setClientes(clientes);
   }
 
   // ---------- Formatação ----------
@@ -110,12 +138,10 @@
   const inputLocalOrigemNumero = document.getElementById('localOrigemNumero');
   const inputLocalDestino = document.getElementById('localDestino');
   const inputLocalDestinoNumero = document.getElementById('localDestinoNumero');
-  const inputTipoSegurado = document.getElementById('tipoSegurado');
-  const campoSeguradoraSelect = document.getElementById('campoSeguradoraSelect');
-  const seguradoSelect = document.getElementById('seguradoSelect');
-  const campoClienteNome = document.getElementById('campoClienteNome');
-  const inputClienteNome = document.getElementById('clienteNome');
-  const datalistClientes = document.getElementById('clientesList');
+  const clienteSelect = document.getElementById('clienteSelect');
+  const linhaNovoCliente = document.getElementById('linhaNovoCliente');
+  const inputClienteNomeNovo = document.getElementById('clienteNomeNovo');
+  const inputNumeroProtocolo = document.getElementById('numeroProtocolo');
   const inputDescricao = document.getElementById('descricao');
   const btnSalvar = document.getElementById('btnSalvar');
   const btnCancelarEdicao = document.getElementById('btnCancelarEdicao');
@@ -148,14 +174,13 @@
   const periodoDashboard = document.getElementById('periodoDashboard');
   const dashboardStats = document.getElementById('dashboardStats');
   const dashboardGrafico = document.getElementById('dashboardGrafico');
-  const dashboardTipos = document.getElementById('dashboardTipos');
   const dashboardRanking = document.getElementById('dashboardRanking');
   const dashboardVazio = document.getElementById('dashboardVazio');
 
-  const formSeguradora = document.getElementById('form-seguradora');
-  const inputNovaSeguradoraNome = document.getElementById('novaSeguradoraNome');
-  const listaSeguradorasEl = document.getElementById('listaSeguradoras');
-  const seguradorasVazio = document.getElementById('seguradorasVazio');
+  const formCliente = document.getElementById('form-cliente');
+  const inputNovoClienteNome = document.getElementById('novoClienteNome');
+  const listaClientesEl = document.getElementById('listaClientes');
+  const clientesVazio = document.getElementById('clientesVazio');
 
   const toastEl = document.getElementById('toast');
 
@@ -176,17 +201,17 @@
     lista: document.getElementById('view-lista'),
     dashboard: document.getElementById('view-dashboard'),
     relatorio: document.getElementById('view-relatorio'),
-    seguradoras: document.getElementById('view-seguradoras'),
+    clientes: document.getElementById('view-clientes'),
   };
   const tabButtons = document.querySelectorAll('.tab-btn');
 
   function irParaView(nome) {
     Object.entries(views).forEach(([key, el]) => { el.hidden = key !== nome; });
     tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === nome));
-    if (nome === 'lista') { popularFiltroSeguradora(seguradoraLista); renderLista(); }
+    if (nome === 'lista') { popularFiltroCliente(seguradoraLista); renderLista(); }
     if (nome === 'dashboard') renderDashboard();
-    if (nome === 'relatorio') { popularFiltroSeguradora(seguradoraRelatorio); renderRelatorio(); }
-    if (nome === 'seguradoras') renderListaSeguradoras();
+    if (nome === 'relatorio') { popularFiltroCliente(seguradoraRelatorio); renderRelatorio(); }
+    if (nome === 'clientes') renderListaClientes();
     if (nome === 'nova' && !inputEditingId.value) {
       inputDataRegistro.value = agoraParaDataInput();
       inputHoraRegistro.value = agoraParaHoraInput();
@@ -197,62 +222,42 @@
     btn.addEventListener('click', () => irParaView(btn.dataset.view));
   });
 
-  // ---------- Tipo de segurado (seguradora / particular) ----------
+  // ---------- Seleção de cliente (cadastrado ou novo) ----------
 
-  function tipoSelecionado() {
-    return inputTipoSegurado.value;
-  }
-
-  function atualizarCampoNome() {
-    const tipo = tipoSelecionado();
-    const ehSeguradora = tipo === 'seguradora';
-    campoSeguradoraSelect.hidden = !ehSeguradora;
-    campoClienteNome.hidden = ehSeguradora;
-    seguradoSelect.required = ehSeguradora;
-    inputClienteNome.required = !ehSeguradora;
-    if (ehSeguradora) {
-      renderSeguradoraSelect();
-    } else {
-      atualizarDatalistClientes();
-    }
-  }
-
-  function renderSeguradoraSelect(valorSelecionado) {
-    const seguradoras = getSeguradoras().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    const valorAtual = valorSelecionado !== undefined ? valorSelecionado : seguradoSelect.value;
+  function renderClienteSelect(valorSelecionado) {
+    const clientes = getClientes().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const valorAtual = valorSelecionado !== undefined ? valorSelecionado : clienteSelect.value;
     let opcoes = '<option value="">Selecione...</option>'
-      + seguradoras.map(s => `<option value="${escapeHtml(s.nome)}">${escapeHtml(s.nome)}</option>`).join('');
-    // Preserva o valor de registros antigos mesmo que a seguradora tenha sido removida do cadastro
-    if (valorAtual && !seguradoras.some(s => s.nome === valorAtual)) {
+      + clientes.map(c => `<option value="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</option>`).join('');
+    // Preserva o valor de registros antigos mesmo que o cliente tenha sido removido do cadastro
+    if (valorAtual && valorAtual !== '__novo__' && !clientes.some(c => c.nome === valorAtual)) {
       opcoes += `<option value="${escapeHtml(valorAtual)}">${escapeHtml(valorAtual)}</option>`;
     }
-    seguradoSelect.innerHTML = opcoes;
-    seguradoSelect.value = valorAtual || '';
+    opcoes += '<option value="__novo__">+ Novo cliente</option>';
+    clienteSelect.innerHTML = opcoes;
+    clienteSelect.value = valorAtual || '';
   }
 
-  function atualizarDatalistClientes() {
-    const nomes = [...new Set(
-      getRegistros().filter(r => r.tipo === 'particular').map(r => r.nome)
-    )].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    datalistClientes.innerHTML = nomes.map(n => `<option value="${escapeHtml(n)}">`).join('');
+  function atualizarLinhaNovoCliente() {
+    linhaNovoCliente.hidden = clienteSelect.value !== '__novo__';
+    if (!linhaNovoCliente.hidden) inputClienteNomeNovo.focus();
   }
 
-  inputTipoSegurado.addEventListener('change', atualizarCampoNome);
+  clienteSelect.addEventListener('change', atualizarLinhaNovoCliente);
 
-  // ---------- Filtro por seguradora (usado em Serviços e Relatório) ----------
+  // ---------- Filtro por cliente (usado em Serviços e Relatório) ----------
 
-  function popularFiltroSeguradora(selectEl) {
+  function popularFiltroCliente(selectEl) {
     const atual = selectEl.value;
-    const seguradoras = getSeguradoras().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    selectEl.innerHTML = '<option value="">Todos</option><option value="__particular__">Particulares</option>'
-      + seguradoras.map(s => `<option value="${escapeHtml(s.nome)}">${escapeHtml(s.nome)}</option>`).join('');
+    const clientes = getClientes().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    selectEl.innerHTML = '<option value="">Todos</option>'
+      + clientes.map(c => `<option value="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</option>`).join('');
     selectEl.value = atual;
   }
 
-  function passaFiltroSeguradora(registro, valorFiltro) {
+  function passaFiltroCliente(registro, valorFiltro) {
     if (!valorFiltro) return true;
-    if (valorFiltro === '__particular__') return registro.tipo === 'particular';
-    return registro.tipo === 'seguradora' && registro.nome === valorFiltro;
+    return registro.nome === valorFiltro;
   }
 
   function passaFiltroPeriodo(dataHoraIso, periodo, dataDe, dataAte) {
@@ -280,45 +285,53 @@
     return true;
   }
 
-  // ---------- Cadastro de seguradoras ----------
+  // ---------- Cadastro de clientes ----------
 
-  function renderListaSeguradoras() {
-    const seguradoras = getSeguradoras().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    seguradorasVazio.hidden = seguradoras.length > 0;
-    listaSeguradorasEl.innerHTML = seguradoras.map(s => `
-      <div class="seguradora-item" data-id="${s.id}">
-        <span>${escapeHtml(s.nome)}</span>
-        <button type="button" class="btn-remover" data-id="${s.id}" title="Remover"><svg class="icon"><use href="#icon-x"></use></svg></button>
+  function renderListaClientes() {
+    const clientes = getClientes().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    clientesVazio.hidden = clientes.length > 0;
+    listaClientesEl.innerHTML = clientes.map(c => `
+      <div class="seguradora-item" data-id="${c.id}">
+        <span>${escapeHtml(c.nome)}</span>
+        <button type="button" class="btn-remover" data-id="${c.id}" title="Remover"><svg class="icon"><use href="#icon-x"></use></svg></button>
       </div>
     `).join('');
 
-    listaSeguradorasEl.querySelectorAll('.btn-remover').forEach(btn => {
+    listaClientesEl.querySelectorAll('.btn-remover').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
-        const restantes = getSeguradoras().filter(s => s.id !== id);
-        setSeguradoras(restantes);
-        renderListaSeguradoras();
-        mostrarToast('Seguradora removida.');
+        const restantes = getClientes().filter(c => c.id !== id);
+        setClientes(restantes);
+        renderListaClientes();
+        mostrarToast('Cliente removido.');
       });
     });
   }
 
-  formSeguradora.addEventListener('submit', (ev) => {
+  function adicionarClienteSeNovo(nome) {
+    const clientes = getClientes();
+    const jaExiste = clientes.some(c => c.nome.toLowerCase() === nome.toLowerCase());
+    if (jaExiste) return;
+    clientes.push({ id: gerarId(), nome });
+    setClientes(clientes);
+  }
+
+  formCliente.addEventListener('submit', (ev) => {
     ev.preventDefault();
-    const nome = inputNovaSeguradoraNome.value.trim();
+    const nome = inputNovoClienteNome.value.trim();
     if (!nome) return;
 
-    const seguradoras = getSeguradoras();
-    const jaExiste = seguradoras.some(s => s.nome.toLowerCase() === nome.toLowerCase());
+    const clientes = getClientes();
+    const jaExiste = clientes.some(c => c.nome.toLowerCase() === nome.toLowerCase());
     if (jaExiste) {
-      mostrarToast('Essa seguradora já está cadastrada.');
+      mostrarToast('Esse cliente já está cadastrado.');
       return;
     }
-    seguradoras.push({ id: gerarId(), nome });
-    setSeguradoras(seguradoras);
-    inputNovaSeguradoraNome.value = '';
-    renderListaSeguradoras();
-    mostrarToast('Seguradora cadastrada!');
+    clientes.push({ id: gerarId(), nome });
+    setClientes(clientes);
+    inputNovoClienteNome.value = '';
+    renderListaClientes();
+    mostrarToast('Cliente cadastrado!');
   });
 
   // ---------- Máscara de moeda ----------
@@ -341,7 +354,8 @@
     btnCancelarEdicao.hidden = true;
     btnExcluirRegistro.hidden = true;
     btnSalvar.textContent = 'Salvar serviço';
-    atualizarCampoNome();
+    renderClienteSelect('');
+    atualizarLinhaNovoCliente();
   }
 
   function carregarParaEdicao(id) {
@@ -357,15 +371,11 @@
     inputLocalOrigemNumero.value = registro.localOrigemNumero || '';
     inputLocalDestino.value = registro.localDestino || '';
     inputLocalDestinoNumero.value = registro.localDestinoNumero || '';
-    inputTipoSegurado.value = registro.tipo;
+    inputNumeroProtocolo.value = registro.protocolo || '';
     inputDescricao.value = registro.descricao || '';
 
-    atualizarCampoNome();
-    if (registro.tipo === 'seguradora') {
-      renderSeguradoraSelect(registro.nome);
-    } else {
-      inputClienteNome.value = registro.nome;
-    }
+    renderClienteSelect(registro.nome);
+    atualizarLinhaNovoCliente();
 
     btnCancelarEdicao.hidden = false;
     btnExcluirRegistro.hidden = false;
@@ -378,8 +388,9 @@
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();
 
-    const tipo = tipoSelecionado();
-    const nome = tipo === 'seguradora' ? seguradoSelect.value.trim() : inputClienteNome.value.trim();
+    const nome = clienteSelect.value === '__novo__'
+      ? inputClienteNomeNovo.value.trim()
+      : clienteSelect.value.trim();
     if (!nome) return;
 
     const registros = getRegistros();
@@ -393,10 +404,12 @@
       localOrigemNumero: inputLocalOrigemNumero.value.trim(),
       localDestino: inputLocalDestino.value.trim(),
       localDestinoNumero: inputLocalDestinoNumero.value.trim(),
-      tipo,
       nome,
+      protocolo: inputNumeroProtocolo.value.trim(),
       descricao: inputDescricao.value.trim(),
     };
+
+    adicionarClienteSeNovo(nome);
 
     const index = registros.findIndex(r => r.id === id);
     if (index >= 0) {
@@ -452,9 +465,9 @@
   function agruparPorNome(registros) {
     const grupos = new Map();
     registros.forEach(r => {
-      const chave = r.tipo + '::' + r.nome.toLowerCase();
+      const chave = r.nome.toLowerCase();
       if (!grupos.has(chave)) {
-        grupos.set(chave, { nome: r.nome, tipo: r.tipo, total: 0, qtd: 0 });
+        grupos.set(chave, { nome: r.nome, total: 0, qtd: 0 });
       }
       const g = grupos.get(chave);
       g.total += r.valorFrete;
@@ -489,6 +502,7 @@
   function montarTextoCompartilhamento(r) {
     const linhas = ['*Serviço de Guincho – J Batista*', ''];
     linhas.push(`📅 ${formatarDataHora(r.dataHora)}`);
+    if (r.protocolo) linhas.push(`🔖 Protocolo: ${r.protocolo}`);
     if (r.placa) linhas.push(`🚗 Placa: ${r.placa}`);
     if (r.localOrigem) linhas.push(`📍 Retirada: ${formatarLocalComNumero(r.localOrigem, r.localOrigemNumero)}`);
     if (r.localDestino) linhas.push(`📍 Entrega: ${formatarLocalComNumero(r.localDestino, r.localDestinoNumero)}`);
@@ -531,7 +545,7 @@
   function obterRegistrosFiltradosLista() {
     const termo = buscaLista.value.trim().toLowerCase();
     const periodo = periodoLista.value;
-    const seguradoraFiltro = seguradoraLista.value;
+    const clienteFiltro = seguradoraLista.value;
     const valorMin = valorMinLista.value ? valorMascaradoParaNumero(valorMinLista.value) : null;
     const valorMax = valorMaxLista.value ? valorMascaradoParaNumero(valorMaxLista.value) : null;
 
@@ -543,7 +557,7 @@
         || (r.localOrigem || '').toLowerCase().includes(termo)
         || (r.localDestino || '').toLowerCase().includes(termo))
       .filter(r => passaFiltroPeriodo(r.dataHora, periodo, dataDeLista.value, dataAteLista.value))
-      .filter(r => passaFiltroSeguradora(r, seguradoraFiltro))
+      .filter(r => passaFiltroCliente(r, clienteFiltro))
       .filter(r => passaFiltroValor(r.valorFrete, valorMin, valorMax))
       .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
   }
@@ -555,10 +569,10 @@
     listaRegistros.innerHTML = registros.map(r => `
       <div class="registro-card" data-id="${r.id}">
         <div class="linha-topo">
-          <span class="nome">${escapeHtml(r.nome)}<span class="tag ${r.tipo === 'particular' ? 'tag-particular' : 'tag-seguradora'}">${r.tipo === 'particular' ? 'Particular' : 'Seguradora'}</span></span>
+          <span class="nome">${escapeHtml(r.nome)}</span>
           <span class="valor">${formatarMoeda(r.valorFrete)}</span>
         </div>
-        <div class="data">${formatarDataHora(r.dataHora)}${r.placa ? ` · ${escapeHtml(r.placa)}` : ''}</div>
+        <div class="data">${formatarDataHora(r.dataHora)}${r.placa ? ` · ${escapeHtml(r.placa)}` : ''}${r.protocolo ? ` · Protocolo: ${escapeHtml(r.protocolo)}` : ''}</div>
         ${(r.localOrigem || r.localDestino) ? `
         <div class="trajeto">
           ${r.localOrigem ? `<div><span class="rotulo">Pegou em:</span> ${escapeHtml(formatarLocalComNumero(r.localOrigem, r.localOrigemNumero))}</div>` : ''}
@@ -606,13 +620,13 @@
 
   function obterRegistrosFiltradosRelatorio() {
     const periodo = periodoRelatorio.value;
-    const seguradoraFiltro = seguradoraRelatorio.value;
+    const clienteFiltro = seguradoraRelatorio.value;
     const valorMin = valorMinRelatorio.value ? valorMascaradoParaNumero(valorMinRelatorio.value) : null;
     const valorMax = valorMaxRelatorio.value ? valorMascaradoParaNumero(valorMaxRelatorio.value) : null;
 
     return getRegistros()
       .filter(r => passaFiltroPeriodo(r.dataHora, periodo, dataDeRelatorio.value, dataAteRelatorio.value))
-      .filter(r => passaFiltroSeguradora(r, seguradoraFiltro))
+      .filter(r => passaFiltroCliente(r, clienteFiltro))
       .filter(r => passaFiltroValor(r.valorFrete, valorMin, valorMax));
   }
 
@@ -637,7 +651,7 @@
     relatorioGrupos.innerHTML = gruposOrdenados.map(g => `
       <div class="grupo-card">
         <div>
-          <div class="grupo-nome">${escapeHtml(g.nome)}<span class="tag ${g.tipo === 'particular' ? 'tag-particular' : 'tag-seguradora'}">${g.tipo === 'particular' ? 'Particular' : 'Seguradora'}</span></div>
+          <div class="grupo-nome">${escapeHtml(g.nome)}</div>
           <div class="grupo-qtd">${g.qtd} serviço${g.qtd !== 1 ? 's' : ''}</div>
         </div>
         <div class="grupo-valor">${formatarMoeda(g.total)}</div>
@@ -666,6 +680,10 @@
       const data = new Date(r.dataHora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       const identificacao = r.placa ? `${r.nome} (${r.placa})` : r.nome;
       linhas.push(`${data} — ${identificacao}: ${formatarMoeda(r.valorFrete)}`);
+      const origem = formatarLocalComNumero(r.localOrigem, r.localOrigemNumero);
+      const destino = formatarLocalComNumero(r.localDestino, r.localDestinoNumero);
+      if (origem) linhas.push(`   📍 Retirada: ${origem}`);
+      if (destino) linhas.push(`   📍 Destino: ${destino}`);
     });
     linhas.push('');
     linhas.push(`💰 *Total: ${formatarMoeda(totalGeral)}* (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`);
@@ -684,8 +702,8 @@
   const COLUNAS_EXCEL = [
     { titulo: 'Data', largura: 11 },
     { titulo: 'Hora', largura: 7 },
-    { titulo: 'Tipo', largura: 12 },
-    { titulo: 'Seguradora/Cliente', largura: 24 },
+    { titulo: 'Cliente', largura: 24 },
+    { titulo: 'Protocolo', largura: 14 },
     { titulo: 'Placa', largura: 10 },
     { titulo: 'Valor', largura: 13 },
     { titulo: 'Origem', largura: 30 },
@@ -702,8 +720,8 @@
       return [
         d.toLocaleDateString('pt-BR'),
         d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        r.tipo === 'particular' ? 'Particular' : 'Seguradora',
         r.nome,
+        r.protocolo || '',
         r.placa || '',
         r.valorFrete,
         r.localOrigem || '',
@@ -712,6 +730,20 @@
         r.localDestinoNumero || '',
         r.descricao || '',
       ];
+    });
+  }
+
+  // Calcula a largura de cada coluna com base no maior conteúdo (cabeçalho ou dado),
+  // para nenhuma coluna cortar texto na exportação.
+  function calcularLargurasExcel(colunas, linhas, colunaValor) {
+    return colunas.map((coluna, indice) => {
+      let maiorTamanho = coluna.titulo.length;
+      linhas.forEach(linha => {
+        const valor = linha[indice];
+        const texto = indice === colunaValor ? formatarMoeda(valor) : String(valor == null ? '' : valor);
+        if (texto.length > maiorTamanho) maiorTamanho = texto.length;
+      });
+      return Math.min(Math.max(maiorTamanho + 2, 8), 60);
     });
   }
 
@@ -732,12 +764,15 @@
     }
     const totalGeral = registros.reduce((soma, r) => soma + r.valorFrete, 0);
     const ordenados = [...registros].sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+    const linhasExcel = montarLinhasExcel(ordenados);
+    const larguras = calcularLargurasExcel(COLUNAS_EXCEL, linhasExcel, INDICE_COLUNA_VALOR_EXCEL);
+    const colunasAjustadas = COLUNAS_EXCEL.map((c, i) => ({ titulo: c.titulo, largura: larguras[i] }));
 
     const bytes = XlsxLite.gerarBytes({
       titulo: 'J Batista — Relatório de Serviços de Guincho',
       subtitulo: `${periodoDescricaoRelatorio()}  ·  Gerado em ${new Date().toLocaleString('pt-BR')}`,
-      colunas: COLUNAS_EXCEL,
-      linhas: montarLinhasExcel(ordenados),
+      colunas: colunasAjustadas,
+      linhas: linhasExcel,
       colunaValor: INDICE_COLUNA_VALOR_EXCEL,
       totalValor: totalGeral,
       totalRotulo: `TOTAL (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`,
@@ -820,7 +855,6 @@
   // ---------- Gráficos do dashboard (Chart.js) ----------
 
   let chartFaturamento = null;
-  let chartTipos = null;
   let chartRanking = null;
 
   function corDoTema(variavel) {
@@ -923,53 +957,6 @@
     mostrarCaption(temHoje ? indiceHoje : totais.indexOf(Math.max(...totais)));
   }
 
-  function renderTiposDashboard(registros, total) {
-    const totalSeguradora = registros.filter(r => r.tipo === 'seguradora').reduce((s, r) => s + r.valorFrete, 0);
-    const totalParticular = registros.filter(r => r.tipo === 'particular').reduce((s, r) => s + r.valorFrete, 0);
-    const pctSeguradora = total > 0 ? Math.round((totalSeguradora / total) * 100) : 0;
-    const pctParticular = total > 0 ? Math.round((totalParticular / total) * 100) : 0;
-
-    const corSeguradora = corDoTema('--chart-navy');
-    const corParticular = corDoTema('--gold-500');
-
-    dashboardTipos.innerHTML = `
-      <div class="tipos-chart-wrap"><canvas id="canvasTipos"></canvas></div>
-      <div class="tipos-legenda">
-        <div class="tipos-legenda-item">
-          <span class="ponto" style="background:${corSeguradora}"></span>
-          <span class="tipos-legenda-nome">Seguradora</span>
-          <span class="tipos-legenda-pct">${pctSeguradora}%</span>
-          <span class="tipos-legenda-valor">${formatarMoeda(totalSeguradora)}</span>
-        </div>
-        <div class="tipos-legenda-item">
-          <span class="ponto" style="background:${corParticular}"></span>
-          <span class="tipos-legenda-nome">Particular</span>
-          <span class="tipos-legenda-pct">${pctParticular}%</span>
-          <span class="tipos-legenda-valor">${formatarMoeda(totalParticular)}</span>
-        </div>
-      </div>
-    `;
-
-    const ctx = document.getElementById('canvasTipos').getContext('2d');
-    if (chartTipos) chartTipos.destroy();
-    chartTipos = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Seguradora', 'Particular'],
-        datasets: [{ data: [totalSeguradora, totalParticular], backgroundColor: [corSeguradora, corParticular], borderColor: '#fff', borderWidth: 2 }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '68%',
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (item) => `${item.label}: ${formatarMoeda(item.parsed)}` } },
-        },
-      },
-    });
-  }
-
   function renderRankingDashboard(registros) {
     const grupos = agruparPorNome(registros).slice(0, 8);
 
@@ -1020,10 +1007,8 @@
       dashboardStats.innerHTML = '';
       dashboardGrafico.hidden = true;
       dashboardGrafico.innerHTML = '';
-      dashboardTipos.innerHTML = '';
       dashboardRanking.innerHTML = '';
       if (chartFaturamento) { chartFaturamento.destroy(); chartFaturamento = null; }
-      if (chartTipos) { chartTipos.destroy(); chartTipos = null; }
       if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
       return;
     }
@@ -1038,7 +1023,6 @@
     `;
 
     renderGraficoDashboard(registros);
-    renderTiposDashboard(registros, total);
     renderRankingDashboard(registros);
   }
 
@@ -1184,6 +1168,7 @@
 
   // ---------- Inicialização ----------
 
+  migrarParaClientesUnificado();
   limparFormulario();
   irParaView('nova');
 

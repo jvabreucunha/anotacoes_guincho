@@ -13,10 +13,6 @@
   --line: #e2e7ee;
   --danger: #e0472b;
 
-  --tag-seguradora-bg: #e7edf5;
-  --tag-particular-bg: #f6ecd9;
-  --tag-particular-text: #8a662a;
-
   /* Cor usada nos gráficos do dashboard: um passo mais claro que --navy-700 para
      cumprir a faixa de luminosidade exigida em marcas categóricas (validado com
      validate_palette.js junto com --gold-500: todos os checks passam). */
@@ -25,6 +21,8 @@
 }
 
 * { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -109,14 +107,6 @@ body {
 
 .field-valor {
   flex: 1 1 130px;
-}
-
-.field-tipo {
-  flex: 0 0 150px;
-}
-
-.field-selecao {
-  flex: 1 1 125px;
 }
 
 .placa-input {
@@ -411,26 +401,6 @@ button {
 .registro-card .nome {
   font-size: 19px;
   font-weight: 700;
-}
-
-.tag {
-  display: inline-block;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-.tag-seguradora {
-  background: var(--tag-seguradora-bg);
-  color: var(--navy-800);
-}
-
-.tag-particular {
-  background: var(--tag-particular-bg);
-  color: var(--tag-particular-text);
 }
 
 .registro-card .data {
@@ -806,68 +776,6 @@ button {
 
 .grafico-caption strong {
   color: var(--navy-800);
-}
-
-.dashboard-tipos {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: #fff;
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 20px;
-}
-
-.dashboard-tipos:empty {
-  display: none;
-}
-
-.tipos-chart-wrap {
-  position: relative;
-  width: 92px;
-  height: 92px;
-  flex-shrink: 0;
-}
-
-.tipos-legenda {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tipos-legenda-item {
-  min-width: 0;
-}
-
-.tipos-legenda-item .ponto {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.tipos-legenda-nome {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-muted);
-  margin: 0 6px;
-}
-
-.tipos-legenda-pct {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-dark);
-}
-
-.tipos-legenda-valor {
-  display: block;
-  font-size: 15px;
-  font-weight: 800;
-  margin-top: 2px;
 }
 
 .dashboard-subtitulo {

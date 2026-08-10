@@ -38,25 +38,26 @@
     <input type="hidden" id="editingId" value="">
 
     <div class="row">
-      <label class="field field-tipo">
-        <span>Tipo</span>
-        <select id="tipoSegurado">
-          <option value="seguradora">Seguradora</option>
-          <option value="particular">Particular</option>
-        </select>
-      </label>
-
-      <label class="field field-selecao" id="campoSeguradoraSelect">
-        <span>Seguradora</span>
-        <select id="seguradoSelect" required>
+      <label class="field field-grow">
+        <span>Cliente</span>
+        <select id="clienteSelect" required>
           <option value="">Selecione...</option>
+          <option value="__novo__">+ Novo cliente</option>
         </select>
       </label>
+    </div>
 
-      <label class="field field-selecao" id="campoClienteNome" hidden>
-        <span>Nome do cliente</span>
-        <input type="text" id="clienteNome" list="clientesList" placeholder="Digite o nome do cliente">
-        <datalist id="clientesList"></datalist>
+    <div class="row" id="linhaNovoCliente" hidden>
+      <label class="field field-grow">
+        <span>Nome do novo cliente</span>
+        <input type="text" id="clienteNomeNovo" placeholder="Digite o nome do cliente">
+      </label>
+    </div>
+
+    <div class="row" id="linhaProtocolo">
+      <label class="field field-grow">
+        <span>Nº do protocolo <small>(opcional)</small></span>
+        <input type="text" id="numeroProtocolo" placeholder="Digite o número do protocolo">
       </label>
     </div>
 
@@ -131,7 +132,6 @@
       </select>
       <select id="seguradoraLista">
         <option value="">Todos</option>
-        <option value="__particular__">Particulares</option>
       </select>
     </div>
     <div class="filtros-linha" id="linhaPersonalizadoLista" hidden>
@@ -164,7 +164,6 @@
       </select>
       <select id="seguradoraRelatorio">
         <option value="">Todos</option>
-        <option value="__particular__">Particulares</option>
       </select>
     </div>
     <div class="filtros-linha" id="linhaPersonalizadoRelatorio" hidden>
@@ -202,22 +201,21 @@
   </div>
   <div id="dashboardStats" class="dashboard-stats"></div>
   <div id="dashboardGrafico" class="dashboard-grafico"></div>
-  <div id="dashboardTipos" class="dashboard-tipos"></div>
-  <h2 class="dashboard-subtitulo">Por seguradora / cliente</h2>
+  <h2 class="dashboard-subtitulo">Por cliente</h2>
   <div id="dashboardRanking" class="dashboard-ranking"></div>
   <p id="dashboardVazio" class="vazio" hidden>Nenhum serviço no período selecionado.</p>
 </main>
 
-<main id="view-seguradoras" class="view" hidden>
-  <form id="form-seguradora" class="row-seguradora">
+<main id="view-clientes" class="view" hidden>
+  <form id="form-cliente" class="row-seguradora">
     <label class="field field-grow">
-      <span>Nome da seguradora</span>
-      <input type="text" id="novaSeguradoraNome" placeholder="Digite o nome" required>
+      <span>Nome do cliente</span>
+      <input type="text" id="novoClienteNome" placeholder="Digite o nome" required>
     </label>
     <button type="submit" class="btn-add">Adicionar</button>
   </form>
-  <div id="listaSeguradoras" class="lista-seguradoras"></div>
-  <p id="seguradorasVazio" class="vazio" hidden>Nenhuma seguradora cadastrada.</p>
+  <div id="listaClientes" class="lista-seguradoras"></div>
+  <p id="clientesVazio" class="vazio" hidden>Nenhum cliente cadastrado.</p>
 </main>
 
 <nav class="tabbar">
@@ -237,9 +235,9 @@
     <span class="tab-icon"><svg class="icon"><use href="#icon-file-text"></use></svg></span>
     <span>Relatório</span>
   </button>
-  <button class="tab-btn" data-view="seguradoras">
+  <button class="tab-btn" data-view="clientes">
     <span class="tab-icon"><svg class="icon"><use href="#icon-shield"></use></svg></span>
-    <span>Seguradoras</span>
+    <span>Clientes</span>
   </button>
 </nav>
 
