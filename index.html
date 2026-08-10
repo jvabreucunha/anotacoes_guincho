@@ -162,9 +162,12 @@
         <option value="mesPassado">Mês passado</option>
         <option value="personalizado">Personalizado</option>
       </select>
-      <select id="seguradoraRelatorio">
-        <option value="">Todos</option>
-      </select>
+      <div class="multi-select" id="clienteFiltroRelatorio">
+        <button type="button" class="multi-select-btn" id="clienteFiltroRelatorioBtn" aria-haspopup="true" aria-expanded="false">
+          <span id="clienteFiltroRelatorioLabel">Todos</span>
+        </button>
+        <div class="multi-select-menu" id="clienteFiltroRelatorioMenu" hidden></div>
+      </div>
     </div>
     <div class="filtros-linha" id="linhaPersonalizadoRelatorio" hidden>
       <input type="date" id="dataDeRelatorio">

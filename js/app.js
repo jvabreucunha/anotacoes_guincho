@@ -159,7 +159,10 @@
   const valorMaxLista = document.getElementById('valorMaxLista');
 
   const periodoRelatorio = document.getElementById('periodoRelatorio');
-  const seguradoraRelatorio = document.getElementById('seguradoraRelatorio');
+  const clienteFiltroRelatorio = document.getElementById('clienteFiltroRelatorio');
+  const clienteFiltroRelatorioBtn = document.getElementById('clienteFiltroRelatorioBtn');
+  const clienteFiltroRelatorioLabel = document.getElementById('clienteFiltroRelatorioLabel');
+  const clienteFiltroRelatorioMenu = document.getElementById('clienteFiltroRelatorioMenu');
   const linhaPersonalizadoRelatorio = document.getElementById('linhaPersonalizadoRelatorio');
   const dataDeRelatorio = document.getElementById('dataDeRelatorio');
   const dataAteRelatorio = document.getElementById('dataAteRelatorio');
@@ -210,7 +213,7 @@
     tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === nome));
     if (nome === 'lista') { popularFiltroCliente(seguradoraLista); renderLista(); }
     if (nome === 'dashboard') renderDashboard();
-    if (nome === 'relatorio') { popularFiltroCliente(seguradoraRelatorio); renderRelatorio(); }
+    if (nome === 'relatorio') { renderFiltroClienteRelatorio(); renderRelatorio(); }
     if (nome === 'clientes') renderListaClientes();
     if (nome === 'nova' && !inputEditingId.value) {
       inputDataRegistro.value = agoraParaDataInput();
@@ -228,12 +231,12 @@
     const clientes = getClientes().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     const valorAtual = valorSelecionado !== undefined ? valorSelecionado : clienteSelect.value;
     let opcoes = '<option value="">Selecione...</option>'
+      + '<option value="__novo__">+ Novo cliente</option>'
       + clientes.map(c => `<option value="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</option>`).join('');
     // Preserva o valor de registros antigos mesmo que o cliente tenha sido removido do cadastro
     if (valorAtual && valorAtual !== '__novo__' && !clientes.some(c => c.nome === valorAtual)) {
       opcoes += `<option value="${escapeHtml(valorAtual)}">${escapeHtml(valorAtual)}</option>`;
     }
-    opcoes += '<option value="__novo__">+ Novo cliente</option>';
     clienteSelect.innerHTML = opcoes;
     clienteSelect.value = valorAtual || '';
   }
@@ -245,7 +248,7 @@
 
   clienteSelect.addEventListener('change', atualizarLinhaNovoCliente);
 
-  // ---------- Filtro por cliente (usado em Serviços e Relatório) ----------
+  // ---------- Filtro por cliente (usado em Serviços) ----------
 
   function popularFiltroCliente(selectEl) {
     const atual = selectEl.value;
@@ -258,6 +261,69 @@
   function passaFiltroCliente(registro, valorFiltro) {
     if (!valorFiltro) return true;
     return registro.nome === valorFiltro;
+  }
+
+  // ---------- Filtro por cliente com múltipla seleção (Relatório) ----------
+  // Nenhum selecionado = Todos (padrão, sem precisar escolher nada).
+
+  let clientesFiltroRelatorio = [];
+
+  function renderFiltroClienteRelatorio() {
+    const clientes = getClientes().slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    clientesFiltroRelatorio = clientesFiltroRelatorio.filter(nome => clientes.some(c => c.nome === nome));
+    const todosMarcado = clientesFiltroRelatorio.length === 0;
+
+    clienteFiltroRelatorioMenu.innerHTML = `
+      <label class="multi-select-opcao multi-select-todos">
+        <input type="checkbox" value="" ${todosMarcado ? 'checked' : ''}>
+        <span>Todos</span>
+      </label>
+    ` + clientes.map(c => `
+      <label class="multi-select-opcao">
+        <input type="checkbox" value="${escapeHtml(c.nome)}" ${clientesFiltroRelatorio.includes(c.nome) ? 'checked' : ''}>
+        <span>${escapeHtml(c.nome)}</span>
+      </label>
+    `).join('');
+
+    clienteFiltroRelatorioLabel.textContent = todosMarcado
+      ? 'Todos'
+      : clientesFiltroRelatorio.length === 1
+        ? clientesFiltroRelatorio[0]
+        : `${clientesFiltroRelatorio.length} selecionados`;
+  }
+
+  function fecharFiltroClienteRelatorio() {
+    clienteFiltroRelatorioMenu.hidden = true;
+    clienteFiltroRelatorioBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  clienteFiltroRelatorioBtn.addEventListener('click', () => {
+    const abrindo = clienteFiltroRelatorioMenu.hidden;
+    clienteFiltroRelatorioMenu.hidden = !abrindo;
+    clienteFiltroRelatorioBtn.setAttribute('aria-expanded', String(abrindo));
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!clienteFiltroRelatorio.contains(e.target)) fecharFiltroClienteRelatorio();
+  });
+
+  clienteFiltroRelatorioMenu.addEventListener('change', (e) => {
+    const checkbox = e.target;
+    if (checkbox.type !== 'checkbox') return;
+    if (checkbox.value === '') {
+      clientesFiltroRelatorio = [];
+    } else if (checkbox.checked) {
+      clientesFiltroRelatorio.push(checkbox.value);
+    } else {
+      clientesFiltroRelatorio = clientesFiltroRelatorio.filter(nome => nome !== checkbox.value);
+    }
+    renderFiltroClienteRelatorio();
+    renderRelatorio();
+  });
+
+  function passaFiltroClienteMultiplo(registro, valoresFiltro) {
+    if (!valoresFiltro || valoresFiltro.length === 0) return true;
+    return valoresFiltro.includes(registro.nome);
   }
 
   function passaFiltroPeriodo(dataHoraIso, periodo, dataDe, dataAte) {
@@ -620,13 +686,12 @@
 
   function obterRegistrosFiltradosRelatorio() {
     const periodo = periodoRelatorio.value;
-    const clienteFiltro = seguradoraRelatorio.value;
     const valorMin = valorMinRelatorio.value ? valorMascaradoParaNumero(valorMinRelatorio.value) : null;
     const valorMax = valorMaxRelatorio.value ? valorMascaradoParaNumero(valorMaxRelatorio.value) : null;
 
     return getRegistros()
       .filter(r => passaFiltroPeriodo(r.dataHora, periodo, dataDeRelatorio.value, dataAteRelatorio.value))
-      .filter(r => passaFiltroCliente(r, clienteFiltro))
+      .filter(r => passaFiltroClienteMultiplo(r, clientesFiltroRelatorio))
       .filter(r => passaFiltroValor(r.valorFrete, valorMin, valorMax));
   }
 
@@ -663,7 +728,6 @@
     linhaPersonalizadoRelatorio.hidden = periodoRelatorio.value !== 'personalizado';
     renderRelatorio();
   });
-  seguradoraRelatorio.addEventListener('change', renderRelatorio);
   dataDeRelatorio.addEventListener('change', renderRelatorio);
   dataAteRelatorio.addEventListener('change', renderRelatorio);
   valorMinRelatorio.addEventListener('input', renderRelatorio);
