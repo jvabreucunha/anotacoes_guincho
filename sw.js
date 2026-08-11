@@ -1,4 +1,4 @@
-const CACHE_NAME = 'guincho-cache-v18';
+const CACHE_NAME = 'guincho-cache-v19';
 const APP_SHELL = [
   './',
   './index.html',
