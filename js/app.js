@@ -173,6 +173,7 @@
   const relatorioVazio = document.getElementById('relatorioVazio');
   const btnGerarMensagem = document.getElementById('btnGerarMensagem');
   const btnExportarExcel = document.getElementById('btnExportarExcel');
+  const btnExportarPdf = document.getElementById('btnExportarPdf');
 
   const periodoDashboard = document.getElementById('periodoDashboard');
   const dashboardStats = document.getElementById('dashboardStats');
@@ -585,6 +586,68 @@
     await compartilharTexto(montarTextoCompartilhamento(r));
   }
 
+  // ---------- Compartilhar/baixar arquivos (Excel/PDF) ----------
+
+  let logoBytesPromise = null;
+  function obterLogoBytes() {
+    if (!logoBytesPromise) {
+      logoBytesPromise = fetch('images/logo-jbatista-completo.png')
+        .then(resp => (resp.ok ? resp.arrayBuffer() : Promise.reject(new Error('logo indisponível'))))
+        .then(buf => new Uint8Array(buf))
+        .catch(() => null);
+    }
+    return logoBytesPromise;
+  }
+
+  async function compartilharOuBaixarArquivo(blob, nomeArquivo, tituloCompartilhamento, mensagemDownload) {
+    if (navigator.canShare) {
+      const arquivo = new File([blob], nomeArquivo, { type: blob.type });
+      if (navigator.canShare({ files: [arquivo] })) {
+        try {
+          await navigator.share({ files: [arquivo], title: tituloCompartilhamento });
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+          // se o compartilhamento falhar por outro motivo, cai para o download abaixo
+        }
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    mostrarToast(mensagemDownload);
+  }
+
+  async function gerarPdfServico(r) {
+    const campos = [{ label: 'Cliente', valor: r.nome }, { label: 'Data e hora', valor: formatarDataHora(r.dataHora) }];
+    if (r.protocolo) campos.push({ label: 'Nº do protocolo', valor: r.protocolo });
+    if (r.placa) campos.push({ label: 'Placa', valor: r.placa });
+    const origem = formatarLocalComNumero(r.localOrigem, r.localOrigemNumero);
+    if (origem) campos.push({ label: 'Onde pegou', valor: origem });
+    const destino = formatarLocalComNumero(r.localDestino, r.localDestinoNumero);
+    if (destino) campos.push({ label: 'Onde deixou', valor: destino });
+
+    const logoBytes = await obterLogoBytes();
+    const bytes = await PdfExport.gerarBytesServico({
+      logoBytes,
+      subtitulo: `Gerado em ${new Date().toLocaleString('pt-BR')}`,
+      campos,
+      descricaoTexto: r.descricao || null,
+      valorLabel: 'Valor do frete',
+      valorTexto: formatarMoeda(r.valorFrete),
+    });
+
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const nomeBase = (r.placa || r.nome || 'servico').toString().trim().toLowerCase().replace(/\s+/g, '-');
+    await compartilharOuBaixarArquivo(blob, `servico-guincho-${nomeBase}.pdf`, 'Serviço de Guincho', 'PDF baixado!');
+  }
+
   // ---------- Lista de serviços ----------
 
   let idConfirmandoExclusaoLista = null;
@@ -648,6 +711,7 @@
         <div class="card-acoes">
           <button type="button" class="btn-acao btn-editar" data-id="${r.id}"><svg class="icon"><use href="#icon-edit"></use></svg> Editar</button>
           <button type="button" class="btn-acao btn-compartilhar" data-id="${r.id}"><svg class="icon"><use href="#icon-share"></use></svg> Compartilhar</button>
+          <button type="button" class="btn-acao btn-pdf-servico" data-id="${r.id}"><svg class="icon"><use href="#icon-file-text"></use></svg> PDF</button>
           <button type="button" class="btn-acao btn-excluir-card${idConfirmandoExclusaoLista === r.id ? ' confirmando' : ''}" data-id="${r.id}">${idConfirmandoExclusaoLista === r.id ? 'Confirmar exclusão?' : '<svg class="icon"><use href="#icon-trash"></use></svg> Excluir'}</button>
         </div>
       </div>
@@ -664,6 +728,13 @@
         ev.stopPropagation();
         const registro = getRegistros().find(r => r.id === btn.dataset.id);
         if (registro) compartilharRegistro(registro);
+      });
+    });
+    listaRegistros.querySelectorAll('.btn-pdf-servico').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const registro = getRegistros().find(r => r.id === btn.dataset.id);
+        if (registro) gerarPdfServico(registro);
       });
     });
     listaRegistros.querySelectorAll('.btn-excluir-card').forEach(btn => {
@@ -843,33 +914,61 @@
     });
     const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const nomeArquivo = `relatorio-guincho-${new Date().toISOString().slice(0, 10)}.xlsx`;
-
-    if (navigator.canShare) {
-      const arquivo = new File([blob], nomeArquivo, { type: blob.type });
-      if (navigator.canShare({ files: [arquivo] })) {
-        try {
-          await navigator.share({ files: [arquivo], title: 'Relatório de Serviços' });
-          return;
-        } catch (e) {
-          if (e.name === 'AbortError') return;
-          // se o compartilhamento falhar por outro motivo, cai para o download abaixo
-        }
-      }
-    }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeArquivo;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    mostrarToast('Excel baixado!');
+    await compartilharOuBaixarArquivo(blob, nomeArquivo, 'Relatório de Serviços', 'Excel baixado!');
   }
 
   btnExportarExcel.addEventListener('click', () => {
     compartilharOuBaixarExcel(obterRegistrosFiltradosRelatorio());
+  });
+
+  const COLUNAS_PDF_RELATORIO = [
+    { titulo: 'Data', largura: 60 },
+    { titulo: 'Cliente', largura: 140 },
+    { titulo: 'Protocolo', largura: 80 },
+    { titulo: 'Placa', largura: 60 },
+    { titulo: 'Origem', largura: 159 },
+    { titulo: 'Destino', largura: 160 },
+    { titulo: 'Valor', largura: 110 },
+  ];
+  const INDICE_COLUNA_VALOR_PDF = 6;
+
+  function montarLinhasPdfRelatorio(registros) {
+    return registros.map(r => [
+      new Date(r.dataHora).toLocaleDateString('pt-BR'),
+      r.nome,
+      r.protocolo || '',
+      r.placa || '',
+      formatarLocalComNumero(r.localOrigem, r.localOrigemNumero),
+      formatarLocalComNumero(r.localDestino, r.localDestinoNumero),
+      formatarMoeda(r.valorFrete),
+    ]);
+  }
+
+  async function compartilharOuBaixarPdfRelatorio(registros) {
+    if (!registros.length) {
+      mostrarToast('Nada para exportar.');
+      return;
+    }
+    const totalGeral = registros.reduce((soma, r) => soma + r.valorFrete, 0);
+    const ordenados = [...registros].sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+    const logoBytes = await obterLogoBytes();
+
+    const bytes = await PdfExport.gerarBytesRelatorio({
+      logoBytes,
+      subtitulo: `${periodoDescricaoRelatorio()}  ·  Gerado em ${new Date().toLocaleString('pt-BR')}`,
+      colunas: COLUNAS_PDF_RELATORIO,
+      linhas: montarLinhasPdfRelatorio(ordenados),
+      colunaValor: INDICE_COLUNA_VALOR_PDF,
+      totalTexto: formatarMoeda(totalGeral),
+      totalRotulo: `TOTAL (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`,
+    });
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const nomeArquivo = `relatorio-guincho-${new Date().toISOString().slice(0, 10)}.pdf`;
+    await compartilharOuBaixarArquivo(blob, nomeArquivo, 'Relatório de Serviços', 'PDF baixado!');
+  }
+
+  btnExportarPdf.addEventListener('click', () => {
+    compartilharOuBaixarPdfRelatorio(obterRegistrosFiltradosRelatorio());
   });
 
   // ---------- Dashboard ----------
