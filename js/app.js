@@ -599,6 +599,18 @@
     return logoBytesPromise;
   }
 
+  function baixarArquivo(blob, nomeArquivo, mensagemDownload) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    mostrarToast(mensagemDownload);
+  }
+
   async function compartilharOuBaixarArquivo(blob, nomeArquivo, tituloCompartilhamento, mensagemDownload) {
     if (navigator.canShare) {
       const arquivo = new File([blob], nomeArquivo, { type: blob.type });
@@ -612,16 +624,7 @@
         }
       }
     }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeArquivo;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    mostrarToast(mensagemDownload);
+    baixarArquivo(blob, nomeArquivo, mensagemDownload);
   }
 
   async function gerarPdfServico(r) {
@@ -645,7 +648,7 @@
 
     const blob = new Blob([bytes], { type: 'application/pdf' });
     const nomeBase = (r.placa || r.nome || 'servico').toString().trim().toLowerCase().replace(/\s+/g, '-');
-    await compartilharOuBaixarArquivo(blob, `servico-guincho-${nomeBase}.pdf`, 'Serviço de Guincho', 'PDF baixado!');
+    baixarArquivo(blob, `servico-guincho-${nomeBase}.pdf`, 'PDF baixado!');
   }
 
   // ---------- Lista de serviços ----------
@@ -964,7 +967,7 @@
     });
     const blob = new Blob([bytes], { type: 'application/pdf' });
     const nomeArquivo = `relatorio-guincho-${new Date().toISOString().slice(0, 10)}.pdf`;
-    await compartilharOuBaixarArquivo(blob, nomeArquivo, 'Relatório de Serviços', 'PDF baixado!');
+    baixarArquivo(blob, nomeArquivo, 'PDF baixado!');
   }
 
   btnExportarPdf.addEventListener('click', () => {
