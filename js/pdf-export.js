@@ -75,29 +75,53 @@
     const altura = 841.89;
     const margem = 44;
     const larguraConteudo = largura - margem * 2;
-    const page = pdfDoc.addPage([largura, altura]);
 
-    const alturaCabecalho = 96;
-    page.drawRectangle({ x: 0, y: altura - alturaCabecalho, width: largura, height: alturaCabecalho, color: CORES.navy900 });
-    page.drawRectangle({ x: 0, y: altura - alturaCabecalho - 4, width: largura, height: 4, color: CORES.gold500 });
+    let page = null;
+    let y = 0;
 
-    let logoLargura = 0;
-    if (logoImage) {
-      const alturaLogo = 56;
-      logoLargura = (logoImage.width / logoImage.height) * alturaLogo;
-      page.drawImage(logoImage, { x: margem, y: altura - alturaCabecalho / 2 - alturaLogo / 2, width: logoLargura, height: alturaLogo });
+    // Cria uma nova página; a primeira leva o cabeçalho completo (logo + título),
+    // as demais (quando a descrição não cabe em uma página) levam um cabeçalho simples.
+    function novaPagina(comCabecalhoPrincipal) {
+      page = pdfDoc.addPage([largura, altura]);
+      page.drawText('Documento gerado automaticamente pelo app Anotações Guincho — J Batista.', {
+        x: margem, y: 30, size: 8, font: fontRegular, color: CORES.textMuted,
+      });
+
+      if (comCabecalhoPrincipal) {
+        const alturaCabecalho = 96;
+        page.drawRectangle({ x: 0, y: altura - alturaCabecalho, width: largura, height: alturaCabecalho, color: CORES.navy900 });
+        page.drawRectangle({ x: 0, y: altura - alturaCabecalho - 4, width: largura, height: 4, color: CORES.gold500 });
+
+        let logoLargura = 0;
+        if (logoImage) {
+          const alturaLogo = 56;
+          logoLargura = (logoImage.width / logoImage.height) * alturaLogo;
+          page.drawImage(logoImage, { x: margem, y: altura - alturaCabecalho / 2 - alturaLogo / 2, width: logoLargura, height: alturaLogo });
+        }
+        const xTitulo = margem + logoLargura + (logoImage ? 14 : 0);
+        page.drawText('J BATISTA', { x: xTitulo, y: altura - 46, size: 20, font: fontBold, color: CORES.branco });
+        page.drawText('GUINCHO 24 HORAS', { x: xTitulo, y: altura - 64, size: 9, font: fontBold, color: CORES.gold400 });
+
+        y = altura - alturaCabecalho - 36;
+        page.drawText('Serviço de Guincho', { x: margem, y, size: 17, font: fontBold, color: CORES.navy900 });
+        y -= 16;
+        page.drawText(subtitulo, { x: margem, y, size: 9, font: fontRegular, color: CORES.textMuted });
+        y -= 30;
+      } else {
+        page.drawText('Serviço de Guincho (continuação)', { x: margem, y: altura - 28, size: 10, font: fontBold, color: CORES.textMuted });
+        y = altura - 46;
+      }
     }
-    const xTitulo = margem + logoLargura + (logoImage ? 14 : 0);
-    page.drawText('J BATISTA', { x: xTitulo, y: altura - 46, size: 20, font: fontBold, color: CORES.branco });
-    page.drawText('GUINCHO 24 HORAS', { x: xTitulo, y: altura - 64, size: 9, font: fontBold, color: CORES.gold400 });
 
-    let y = altura - alturaCabecalho - 36;
-    page.drawText('Serviço de Guincho', { x: margem, y, size: 17, font: fontBold, color: CORES.navy900 });
-    y -= 16;
-    page.drawText(subtitulo, { x: margem, y, size: 9, font: fontRegular, color: CORES.textMuted });
-    y -= 30;
+    // Garante espaço para o próximo bloco antes de desenhar; se não couber, pagina.
+    function garantirEspaco(alturaNecessaria) {
+      if (y - alturaNecessaria < margem) novaPagina(false);
+    }
+
+    novaPagina(true);
 
     campos.forEach(campo => {
+      garantirEspaco(36);
       page.drawText(campo.label.toUpperCase(), { x: margem, y, size: 8, font: fontBold, color: CORES.textMuted });
       y -= 14;
       page.drawText(String(campo.valor), { x: margem, y, size: 12, font: fontRegular, color: CORES.textDark });
@@ -105,10 +129,12 @@
     });
 
     if (descricaoTexto) {
+      garantirEspaco(19);
       y -= 4;
       page.drawText('OBSERVAÇÕES', { x: margem, y, size: 8, font: fontBold, color: CORES.textMuted });
       y -= 15;
       quebrarTexto(fontRegular, descricaoTexto, 11, larguraConteudo).forEach(linha => {
+        garantirEspaco(15);
         page.drawText(linha, { x: margem, y, size: 11, font: fontRegular, color: CORES.textDark });
         y -= 15;
       });
@@ -116,14 +142,11 @@
     }
 
     const alturaCaixa = 60;
+    garantirEspaco(alturaCaixa + 6);
     y -= 6;
     page.drawRectangle({ x: margem, y: y - alturaCaixa, width: larguraConteudo, height: alturaCaixa, color: CORES.navy900 });
     page.drawText(valorLabel.toUpperCase(), { x: margem + 18, y: y - 24, size: 10, font: fontBold, color: CORES.textOnDarkMuted });
     page.drawText(valorTexto, { x: margem + 18, y: y - 47, size: 24, font: fontBold, color: CORES.gold400 });
-
-    page.drawText('Documento gerado automaticamente pelo app Anotações Guincho — J Batista.', {
-      x: margem, y: 30, size: 8, font: fontRegular, color: CORES.textMuted,
-    });
 
     return pdfDoc.save();
   }
@@ -154,7 +177,7 @@
     const altura = 595.28;
     const margem = 36;
     const larguraConteudo = largura - margem * 2;
-    const alturaLinha = 20;
+    const alturaLinhaMin = 20;
     const alturaCabecalhoTabela = 22;
     const rodapeReservado = 30;
 
@@ -205,20 +228,34 @@
 
     novaPagina(true);
 
+    const alturaLinhaBase = 12; // altura de cada linha de texto quebrado dentro da célula
+
     linhas.forEach((linha, indice) => {
+      // Quebra o texto de cada célula (em vez de truncar com "..."), pra não
+      // cortar descrições/endereços longos — a linha da tabela cresce conforme necessário.
+      const linhasPorColuna = linha.map((valor, i) => {
+        const c = colunas[i];
+        const texto = valor == null ? '' : String(valor);
+        return quebrarTexto(fontRegular, texto, 9, c.largura - 10);
+      });
+      const maiorNumeroLinhas = Math.max(1, ...linhasPorColuna.map(l => l.length));
+      const alturaLinha = alturaLinhaMin + (maiorNumeroLinhas - 1) * alturaLinhaBase;
+
       if (y - alturaLinha < margem + rodapeReservado) novaPagina(false);
 
       if (indice % 2 === 1) {
         paginaAtual.drawRectangle({ x: margem, y: y - alturaLinha, width: larguraConteudo, height: alturaLinha, color: CORES.bgLight });
       }
-      linha.forEach((valor, i) => {
+      linhasPorColuna.forEach((linsColuna, i) => {
         const c = colunas[i];
-        const texto = truncar(fontRegular, valor == null ? '' : String(valor), 9, c.largura - 10);
         const direita = i === colunaValor;
-        const xTexto = direita
-          ? xColunas[i] + c.largura - 6 - fontRegular.widthOfTextAtSize(texto, 9)
-          : xColunas[i] + 6;
-        paginaAtual.drawText(texto, { x: xTexto, y: y - alturaLinha + 6, size: 9, font: fontRegular, color: CORES.textDark });
+        linsColuna.forEach((textoLinha, li) => {
+          const xTexto = direita
+            ? xColunas[i] + c.largura - 6 - fontRegular.widthOfTextAtSize(textoLinha, 9)
+            : xColunas[i] + 6;
+          const yTexto = y - 14 - li * alturaLinhaBase;
+          paginaAtual.drawText(textoLinha, { x: xTexto, y: yTexto, size: 9, font: fontRegular, color: CORES.textDark });
+        });
       });
       y -= alturaLinha;
     });

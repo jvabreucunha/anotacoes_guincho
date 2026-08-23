@@ -925,15 +925,16 @@
   });
 
   const COLUNAS_PDF_RELATORIO = [
-    { titulo: 'Data', largura: 60 },
-    { titulo: 'Cliente', largura: 140 },
-    { titulo: 'Protocolo', largura: 80 },
-    { titulo: 'Placa', largura: 60 },
-    { titulo: 'Origem', largura: 159 },
-    { titulo: 'Destino', largura: 160 },
-    { titulo: 'Valor', largura: 110 },
+    { titulo: 'Data', largura: 58 },
+    { titulo: 'Cliente', largura: 100 },
+    { titulo: 'Protocolo', largura: 62 },
+    { titulo: 'Placa', largura: 46 },
+    { titulo: 'Origem', largura: 110 },
+    { titulo: 'Destino', largura: 110 },
+    { titulo: 'Descrição', largura: 197 },
+    { titulo: 'Valor', largura: 86.89 },
   ];
-  const INDICE_COLUNA_VALOR_PDF = 6;
+  const INDICE_COLUNA_VALOR_PDF = 7;
 
   function montarLinhasPdfRelatorio(registros) {
     return registros.map(r => [
@@ -943,6 +944,7 @@
       r.placa || '',
       formatarLocalComNumero(r.localOrigem, r.localOrigemNumero),
       formatarLocalComNumero(r.localDestino, r.localDestinoNumero),
+      r.descricao || '',
       formatarMoeda(r.valorFrete),
     ]);
   }
