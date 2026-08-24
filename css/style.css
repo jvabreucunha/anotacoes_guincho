@@ -116,10 +116,6 @@ body {
   text-align: center;
 }
 
-.field-num {
-  flex: 0 0 70px;
-}
-
 .uppercase {
   text-transform: uppercase;
 }
@@ -127,6 +123,25 @@ body {
 .field small {
   font-weight: 400;
   color: var(--text-muted);
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.field-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--navy-700);
+  cursor: pointer;
+}
+
+.field-checkbox span {
+  margin: 0;
+  font-size: 15px;
 }
 
 input[type="text"],
@@ -153,6 +168,11 @@ textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--navy-700);
+}
+
+input:disabled {
+  background: var(--bg-light);
+  color: var(--text-muted);
 }
 
 /* Remove setas do input numérico */
@@ -232,62 +252,20 @@ input[type="number"] {
   border-left: 2px solid var(--line);
 }
 
-/* Campo com sugestões (autocomplete de endereço) */
+/* Rota e distância (Saída / Onde pegou / Onde deixou / Retorno) */
 
-.field-autocomplete {
-  position: relative;
+.rota-distancia {
+  margin-bottom: 12px;
 }
 
-.field-autocomplete .autocomplete-status,
-.field-autocomplete .autocomplete-lista {
-  flex-basis: 100%;
-}
-
-.autocomplete-status {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-muted);
-  min-height: 14px;
-}
-
-.autocomplete-status:empty {
-  display: none;
-}
-
-.autocomplete-lista {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  margin-top: 4px;
+.rota-distancia-resultado {
+  margin-top: 8px;
+  padding: 10px 12px;
   background: var(--bg-white);
   border: 2px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(10, 24, 48, 0.15);
-  z-index: 15;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.autocomplete-lista button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--line);
-  padding: 12px 14px;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--text-dark);
-}
-
-.autocomplete-lista button:last-child {
-  border-bottom: none;
-}
-
-.autocomplete-lista button:active {
-  background: var(--bg-light);
+  font-weight: 700;
+  color: var(--navy-800);
 }
 
 button {
@@ -407,6 +385,40 @@ button {
   color: var(--text-muted);
   font-size: 15px;
   margin-top: 4px;
+}
+
+.badge-pago {
+  display: inline-block;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.badge-pago.pago {
+  background: #e3f5e9;
+  color: #1f8a4c;
+}
+
+.badge-pago.nao-pago {
+  background: #fbeaea;
+  color: var(--danger);
+}
+
+.btn-toggle-pago {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px currentColor;
+  opacity: 0.9;
+}
+
+.btn-toggle-pago:active {
+  opacity: 1;
+  transform: scale(0.96);
 }
 
 .registro-card .trajeto {

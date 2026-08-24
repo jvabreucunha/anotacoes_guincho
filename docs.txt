@@ -1,0 +1,3 @@
+pago e nao pago
+mensagem whats + localizacao
+google maps

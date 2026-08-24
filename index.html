@@ -25,6 +25,7 @@
     <symbol id="icon-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></symbol>
     <symbol id="icon-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></symbol>
     <symbol id="icon-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></symbol>
   </defs>
 </svg>
 
@@ -54,11 +55,39 @@
       </label>
     </div>
 
-    <div class="row" id="linhaProtocolo">
-      <label class="field field-grow">
-        <span>Nº do protocolo <small>(opcional)</small></span>
-        <input type="text" id="numeroProtocolo" placeholder="Digite o número do protocolo">
-      </label>
+    <label class="field">
+      <span>Nº do protocolo <small>(opcional)</small></span>
+      <input type="text" id="numeroProtocolo" placeholder="Digite o número do protocolo">
+    </label>
+
+    <label class="field field-checkbox">
+      <input type="checkbox" id="saidaRetornoDiferente">
+      <span>Saída/Retorno diferente da base</span>
+    </label>
+
+    <label class="field" id="campoLocalSaida" hidden>
+      <span>Saída</span>
+      <input type="text" id="localSaida" placeholder="Endereço de saída..." autocomplete="off" disabled>
+    </label>
+
+    <label class="field">
+      <span>Onde pegou</span>
+      <input type="text" id="localOrigem" placeholder="Rua, cidade..." autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span>Onde deixou</span>
+      <input type="text" id="localDestino" placeholder="Rua, cidade..." autocomplete="off">
+    </label>
+
+    <label class="field" id="campoLocalRetorno" hidden>
+      <span>Retorno</span>
+      <input type="text" id="localRetorno" placeholder="Endereço de retorno..." autocomplete="off" disabled>
+    </label>
+
+    <div class="rota-distancia">
+      <button type="button" class="btn-secondary" id="btnCalcularDistancia">Calcular distância percorrida</button>
+      <div class="rota-distancia-resultado" id="rotaDistanciaResultado" hidden></div>
     </div>
 
     <div class="row">
@@ -75,6 +104,11 @@
       </label>
     </div>
 
+    <label class="field field-checkbox">
+      <input type="checkbox" id="servicoPago">
+      <span>Serviço pago</span>
+    </label>
+
     <label class="field">
       <span>Data e hora</span>
       <div class="datahora-input">
@@ -82,32 +116,6 @@
         <input type="time" id="horaRegistro" required>
       </div>
     </label>
-
-    <div class="row field-autocomplete" id="grupoOrigem">
-      <label class="field field-grow">
-        <span>Onde pegou</span>
-        <input type="text" id="localOrigem" placeholder="Rua, cidade..." autocomplete="off">
-      </label>
-      <label class="field field-num">
-        <span>Nº</span>
-        <input type="text" id="localOrigemNumero" placeholder="opc." inputmode="numeric">
-      </label>
-      <div class="autocomplete-status" id="statusOrigem"></div>
-      <div class="autocomplete-lista" id="listaOrigem" hidden></div>
-    </div>
-
-    <div class="row field-autocomplete" id="grupoDestino">
-      <label class="field field-grow">
-        <span>Onde deixou</span>
-        <input type="text" id="localDestino" placeholder="Rua, cidade..." autocomplete="off">
-      </label>
-      <label class="field field-num">
-        <span>Nº</span>
-        <input type="text" id="localDestinoNumero" placeholder="opc." inputmode="numeric">
-      </label>
-      <div class="autocomplete-status" id="statusDestino"></div>
-      <div class="autocomplete-lista" id="listaDestino" hidden></div>
-    </div>
 
     <label class="field">
       <span>Descrição <small>(opcional)</small></span>
@@ -169,6 +177,13 @@
         <div class="multi-select-menu" id="clienteFiltroRelatorioMenu" hidden></div>
       </div>
     </div>
+    <div class="filtros-linha">
+      <select id="pagoRelatorio">
+        <option value="">Todos</option>
+        <option value="sim">Pagos</option>
+        <option value="nao">Não pagos</option>
+      </select>
+    </div>
     <div class="filtros-linha" id="linhaPersonalizadoRelatorio" hidden>
       <input type="date" id="dataDeRelatorio">
       <input type="date" id="dataAteRelatorio">
@@ -196,12 +211,20 @@
 
 <main id="view-dashboard" class="view" hidden>
   <div class="dashboard-filtros">
-    <select id="periodoDashboard">
-      <option value="hoje">Hoje</option>
-      <option value="semana">Últimos 7 dias</option>
-      <option value="mes" selected>Mês atual</option>
-      <option value="mesPassado">Mês passado</option>
-    </select>
+    <div class="filtros-linha">
+      <select id="periodoDashboard">
+        <option value="hoje">Hoje</option>
+        <option value="semana">Últimos 7 dias</option>
+        <option value="mes" selected>Mês atual</option>
+        <option value="mesPassado">Mês passado</option>
+        <option value="tudo">Todo o período</option>
+      </select>
+      <select id="pagoDashboard">
+        <option value="">Todos</option>
+        <option value="sim">Pagos</option>
+        <option value="nao">Não pagos</option>
+      </select>
+    </div>
   </div>
   <div id="dashboardStats" class="dashboard-stats"></div>
   <div id="dashboardGrafico" class="dashboard-grafico"></div>
@@ -220,6 +243,25 @@
   </form>
   <div id="listaClientes" class="lista-seguradoras"></div>
   <p id="clientesVazio" class="vazio" hidden>Nenhum cliente cadastrado.</p>
+</main>
+
+<main id="view-config" class="view" hidden>
+  <form id="form-config" autocomplete="off">
+    <label class="field">
+      <span>Endereço base <small>(preenche Saída e Retorno automaticamente)</small></span>
+      <input type="text" id="enderecoBaseConfig" placeholder="Endereço da garagem/base..." autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span>Valor por km <small>(sugere o valor do frete ao calcular a distância)</small></span>
+      <div class="money-input">
+        <span class="prefix">R$</span>
+        <input type="text" id="valorPorKmConfig" inputmode="numeric" placeholder="0,00">
+      </div>
+    </label>
+
+    <button type="submit" class="btn-primary" id="btnSalvarConfig">Salvar configurações</button>
+  </form>
 </main>
 
 <nav class="tabbar">
@@ -243,6 +285,10 @@
     <span class="tab-icon"><svg class="icon"><use href="#icon-shield"></use></svg></span>
     <span>Clientes</span>
   </button>
+  <button class="tab-btn" data-view="config">
+    <span class="tab-icon"><svg class="icon"><use href="#icon-settings"></use></svg></span>
+    <span>Config.</span>
+  </button>
 </nav>
 
 <div id="toast" class="toast" hidden></div>
@@ -251,6 +297,7 @@
 <script src="js/vendor/chart.umd.min.js"></script>
 <script src="js/vendor/pdf-lib.min.js"></script>
 <script src="js/pdf-export.js"></script>
+<script src="js/maps-config.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
