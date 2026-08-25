@@ -1339,6 +1339,19 @@
       `Distância total percorrida: ${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
   }
 
+  // O Google chama window.gm_authFailure quando a chave é rejeitada (não habilitada
+  // para o domínio atual, API desligada no projeto, billing ausente, etc.). Isso
+  // acontece de forma assíncrona, independente do onload do <script>, então o
+  // handler precisa estar registrado antes do script ser injetado.
+  window.gm_authFailure = function () {
+    console.error(
+      `Google Maps: chave de API recusada (gm_authFailure). Verifique no Google Cloud ` +
+      `Console se "Maps JavaScript API" e "Places API" estão habilitadas para o projeto ` +
+      `e se ${window.location.origin} está na lista de referrers HTTP permitidos da chave.`
+    );
+    mostrarToast('Google Maps recusou a chave de API — endereços seguem digitáveis manualmente (veja detalhes no console).');
+  };
+
   function carregarGoogleMaps() {
     return new Promise((resolve, reject) => {
       if (window.google && window.google.maps && window.google.maps.places) { resolve(); return; }
@@ -1367,6 +1380,9 @@
   }
 
   function configurarAutocompleteGoogle() {
+    if (!window.google || !google.maps || !google.maps.places) {
+      throw new Error('Biblioteca "places" do Google Maps não carregou — confirme se a Places API está habilitada para a chave.');
+    }
     const bounds = new google.maps.LatLngBounds(
       { lat: LIMITES_LITORAL.south, lng: LIMITES_LITORAL.west },
       { lat: LIMITES_LITORAL.north, lng: LIMITES_LITORAL.east }
@@ -1421,8 +1437,9 @@
 
   btnCalcularDistancia.addEventListener('click', calcularDistanciaRota);
 
-  carregarGoogleMaps().then(configurarAutocompleteGoogle).catch(() => {
-    console.warn('Google Maps não carregado — endereços seguem digitáveis manualmente, sem autocomplete/distância.');
+  carregarGoogleMaps().then(configurarAutocompleteGoogle).catch(erro => {
+    console.warn('Google Maps não carregado — endereços seguem digitáveis manualmente, sem autocomplete/distância.', erro);
+    if (navigator.onLine) mostrarToast(`Google Maps indisponível: ${erro.message}`);
   });
 
   // ---------- Placa em maiúsculas ----------
