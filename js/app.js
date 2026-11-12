@@ -4,6 +4,7 @@
   const STORAGE_KEY = 'guincho_registros_v1';
   const STORAGE_KEY_SEGURADORAS = 'guincho_seguradoras_v1';
   const STORAGE_KEY_CLIENTES = 'guincho_clientes_v1';
+  const STORAGE_KEY_CONFIG = 'guincho_config_v1';
 
   // ---------- Persistência ----------
 
@@ -33,6 +34,20 @@
 
   function setClientes(lista) {
     localStorage.setItem(STORAGE_KEY_CLIENTES, JSON.stringify(lista));
+  }
+
+  function getConfig() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.error('Erro ao ler configurações', e);
+      return {};
+    }
+  }
+
+  function setConfig(config) {
+    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
   }
 
   function gerarId() {
@@ -158,10 +173,15 @@
   const inputValorPedagio = document.getElementById('valorPedagio');
   const totalForm = document.getElementById('totalForm');
   const inputServicoPago = document.getElementById('servicoPago');
+  const inputSaidaRetornoDiferente = document.getElementById('saidaRetornoDiferente');
+  const campoLocalSaida = document.getElementById('campoLocalSaida');
+  const inputLocalSaida = document.getElementById('localSaida');
   const inputLocalOrigem = document.getElementById('localOrigem');
-  const inputLocalOrigemNumero = document.getElementById('localOrigemNumero');
   const inputLocalDestino = document.getElementById('localDestino');
-  const inputLocalDestinoNumero = document.getElementById('localDestinoNumero');
+  const campoLocalRetorno = document.getElementById('campoLocalRetorno');
+  const inputLocalRetorno = document.getElementById('localRetorno');
+  const btnCalcularDistancia = document.getElementById('btnCalcularDistancia');
+  const rotaDistanciaResultado = document.getElementById('rotaDistanciaResultado');
   const clienteSelect = document.getElementById('clienteSelect');
   const linhaNovoCliente = document.getElementById('linhaNovoCliente');
   const inputClienteNomeNovo = document.getElementById('clienteNomeNovo');
@@ -213,6 +233,10 @@
   const listaClientesEl = document.getElementById('listaClientes');
   const clientesVazio = document.getElementById('clientesVazio');
 
+  const formConfig = document.getElementById('form-config');
+  const inputEnderecoBaseConfig = document.getElementById('enderecoBaseConfig');
+  const inputValorPorKmConfig = document.getElementById('valorPorKmConfig');
+
   const toastEl = document.getElementById('toast');
 
   // ---------- Toast ----------
@@ -233,6 +257,7 @@
     dashboard: document.getElementById('view-dashboard'),
     relatorio: document.getElementById('view-relatorio'),
     clientes: document.getElementById('view-clientes'),
+    config: document.getElementById('view-config'),
   };
   const tabButtons = document.querySelectorAll('.tab-btn');
 
@@ -243,9 +268,11 @@
     if (nome === 'dashboard') renderDashboard();
     if (nome === 'relatorio') { renderFiltroClienteRelatorio(); renderRelatorio(); }
     if (nome === 'clientes') renderListaClientes();
+    if (nome === 'config') carregarFormConfig();
     if (nome === 'nova' && !inputEditingId.value) {
       inputDataRegistro.value = agoraParaDataInput();
       inputHoraRegistro.value = agoraParaHoraInput();
+      sincronizarSaidaRetornoComBase();
     }
   }
 
@@ -433,6 +460,23 @@
     mostrarToast('Cliente cadastrado!');
   });
 
+  // ---------- Configurações (endereço base e valor por km) ----------
+
+  function carregarFormConfig() {
+    const config = getConfig();
+    inputEnderecoBaseConfig.value = config.enderecoBase || '';
+    inputValorPorKmConfig.value = config.valorPorKm ? formatarCentavos(Math.round(config.valorPorKm * 100)) : '';
+  }
+
+  formConfig.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    setConfig({
+      enderecoBase: inputEnderecoBaseConfig.value.trim(),
+      valorPorKm: valorMascaradoParaNumero(inputValorPorKmConfig.value),
+    });
+    mostrarToast('Configurações salvas!');
+  });
+
   // ---------- Máscara de moeda ----------
 
   aplicarMascaraMoeda(inputValorFrete);
@@ -449,8 +493,38 @@
   aplicarMascaraMoeda(valorMaxLista);
   aplicarMascaraMoeda(valorMinRelatorio);
   aplicarMascaraMoeda(valorMaxRelatorio);
+  aplicarMascaraMoeda(inputValorPorKmConfig);
 
   // ---------- Salvar / editar / excluir ----------
+
+  // Por padrão Saída/Retorno seguem o endereço base (config) e ficam ocultos;
+  // marcando "diferente da base" o usuário revela os campos para digitar outro endereço.
+  let saidaPersonalizada = '';
+  let retornoPersonalizada = '';
+
+  function aplicarEstadoSaidaRetorno() {
+    const diferente = inputSaidaRetornoDiferente.checked;
+    inputLocalSaida.disabled = !diferente;
+    inputLocalRetorno.disabled = !diferente;
+    campoLocalSaida.hidden = !diferente;
+    campoLocalRetorno.hidden = !diferente;
+  }
+
+  function sincronizarSaidaRetornoComBase() {
+    if (inputSaidaRetornoDiferente.checked) {
+      inputLocalSaida.value = saidaPersonalizada;
+      inputLocalRetorno.value = retornoPersonalizada;
+    } else {
+      saidaPersonalizada = inputLocalSaida.value;
+      retornoPersonalizada = inputLocalRetorno.value;
+      const config = getConfig();
+      inputLocalSaida.value = config.enderecoBase || '';
+      inputLocalRetorno.value = config.enderecoBase || '';
+    }
+    aplicarEstadoSaidaRetorno();
+  }
+
+  inputSaidaRetornoDiferente.addEventListener('change', sincronizarSaidaRetornoComBase);
 
   function limparFormulario() {
     form.reset();
@@ -459,8 +533,10 @@
     inputHoraRegistro.value = agoraParaHoraInput();
     inputValorPedagio.value = '0,00';
     atualizarTotalForm();
-    esconderSugestoes(listaOrigem);
-    esconderSugestoes(listaDestino);
+    limparDistanciaCalculada();
+    saidaPersonalizada = '';
+    retornoPersonalizada = '';
+    sincronizarSaidaRetornoComBase();
     btnCancelarEdicao.hidden = true;
     btnExcluirRegistro.hidden = true;
     btnSalvar.textContent = 'Salvar serviço';
@@ -480,12 +556,22 @@
     inputValorPedagio.value = formatarCentavos(Math.round((Number(registro.valorPedagio) || 0) * 100));
     atualizarTotalForm();
     inputServicoPago.checked = !!registro.pago;
-    inputLocalOrigem.value = registro.localOrigem || '';
-    inputLocalOrigemNumero.value = registro.localOrigemNumero || '';
-    inputLocalDestino.value = registro.localDestino || '';
-    inputLocalDestinoNumero.value = registro.localDestinoNumero || '';
+    inputSaidaRetornoDiferente.checked = !!registro.saidaRetornoDiferente;
+    aplicarEstadoSaidaRetorno();
+    inputLocalSaida.value = registro.localSaida || '';
+    inputLocalOrigem.value = formatarLocalComNumero(registro.localOrigem, registro.localOrigemNumero);
+    inputLocalDestino.value = formatarLocalComNumero(registro.localDestino, registro.localDestinoNumero);
+    inputLocalRetorno.value = registro.localRetorno || '';
+    saidaPersonalizada = registro.saidaRetornoDiferente ? (registro.localSaida || '') : '';
+    retornoPersonalizada = registro.saidaRetornoDiferente ? (registro.localRetorno || '') : '';
     inputNumeroProtocolo.value = registro.protocolo || '';
     inputDescricao.value = registro.descricao || '';
+
+    if (registro.distanciaKm) {
+      exibirDistancia(registro.distanciaKm);
+    } else {
+      limparDistanciaCalculada();
+    }
 
     renderClienteSelect(registro.nome);
     atualizarLinhaNovoCliente();
@@ -520,10 +606,12 @@
       valorFrete: valorMascaradoParaNumero(inputValorFrete.value),
       valorPedagio: valorMascaradoParaNumero(inputValorPedagio.value),
       pago: inputServicoPago.checked,
+      saidaRetornoDiferente: inputSaidaRetornoDiferente.checked,
+      localSaida: inputLocalSaida.value.trim(),
       localOrigem: inputLocalOrigem.value.trim(),
-      localOrigemNumero: inputLocalOrigemNumero.value.trim(),
       localDestino: inputLocalDestino.value.trim(),
-      localDestinoNumero: inputLocalDestinoNumero.value.trim(),
+      localRetorno: inputLocalRetorno.value.trim(),
+      distanciaKm: distanciaCalculadaKm,
       nome,
       protocolo: inputNumeroProtocolo.value.trim(),
       descricao: inputDescricao.value.trim(),
@@ -577,6 +665,7 @@
     }[c]));
   }
 
+  // Registros antigos guardavam o número separado (localOrigemNumero/localDestinoNumero).
   function formatarLocalComNumero(local, numero) {
     if (!local) return '';
     return numero ? `${local}, ${numero}` : local;
@@ -626,8 +715,11 @@
     linhas.push(`📅 ${formatarDataHora(r.dataHora)}`);
     if (r.protocolo) linhas.push(`🔖 Protocolo: ${r.protocolo}`);
     if (r.placa) linhas.push(`🚗 Placa: ${r.placa}`);
+    if (r.localSaida) linhas.push(`🏁 Saída: ${r.localSaida}`);
     if (r.localOrigem) linhas.push(`📍 Retirada: ${formatarLocalComNumero(r.localOrigem, r.localOrigemNumero)}`);
     if (r.localDestino) linhas.push(`📍 Entrega: ${formatarLocalComNumero(r.localDestino, r.localDestinoNumero)}`);
+    if (r.localRetorno) linhas.push(`🏁 Retorno: ${r.localRetorno}`);
+    if (r.distanciaKm) linhas.push(`🛣️ Distância percorrida: ${r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`);
     linhas.push(`🚚 Frete: ${formatarMoeda(r.valorFrete)}`);
     linhas.push(`🛣️ Pedágio: ${formatarMoeda(valorPedagio(r))}`);
     linhas.push(`💰 *Total: ${formatarMoeda(valorTotal(r))}*`);
@@ -688,10 +780,13 @@
     const campos = [{ label: 'Cliente', valor: r.nome }, { label: 'Data e hora', valor: formatarDataHora(r.dataHora) }];
     if (r.protocolo) campos.push({ label: 'Nº do protocolo', valor: r.protocolo });
     if (r.placa) campos.push({ label: 'Placa', valor: r.placa });
+    if (r.localSaida) campos.push({ label: 'Saída', valor: r.localSaida });
     const origem = formatarLocalComNumero(r.localOrigem, r.localOrigemNumero);
     if (origem) campos.push({ label: 'Onde pegou', valor: origem });
     const destino = formatarLocalComNumero(r.localDestino, r.localDestinoNumero);
     if (destino) campos.push({ label: 'Onde deixou', valor: destino });
+    if (r.localRetorno) campos.push({ label: 'Retorno', valor: r.localRetorno });
+    if (r.distanciaKm) campos.push({ label: 'Distância percorrida', valor: `${r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km` });
     campos.push({ label: 'Valor do frete', valor: formatarMoeda(r.valorFrete) });
     campos.push({ label: 'Pedágio', valor: formatarMoeda(valorPedagio(r)) });
 
@@ -765,10 +860,13 @@
         </div>
         <div class="valores-detalhe">Frete ${formatarMoeda(r.valorFrete)} · Pedágio ${formatarMoeda(valorPedagio(r))}</div>
         <div class="data">${formatarDataHora(r.dataHora)}${r.placa ? ` · ${escapeHtml(r.placa)}` : ''}${r.protocolo ? ` · Protocolo: ${escapeHtml(r.protocolo)}` : ''} · <button type="button" class="badge-pago btn-toggle-pago ${r.pago ? 'pago' : 'nao-pago'}" data-id="${r.id}">${r.pago ? 'Pago' : 'Não pago'}</button></div>
-        ${(r.localOrigem || r.localDestino) ? `
+        ${(r.localSaida || r.localOrigem || r.localDestino || r.localRetorno || r.distanciaKm) ? `
         <div class="trajeto">
+          ${r.localSaida ? `<div><span class="rotulo">Saída:</span> ${escapeHtml(r.localSaida)}</div>` : ''}
           ${r.localOrigem ? `<div><span class="rotulo">Pegou em:</span> ${escapeHtml(formatarLocalComNumero(r.localOrigem, r.localOrigemNumero))}</div>` : ''}
           ${r.localDestino ? `<div><span class="rotulo">Deixou em:</span> ${escapeHtml(formatarLocalComNumero(r.localDestino, r.localDestinoNumero))}</div>` : ''}
+          ${r.localRetorno ? `<div><span class="rotulo">Retorno:</span> ${escapeHtml(r.localRetorno)}</div>` : ''}
+          ${r.distanciaKm ? `<div><span class="rotulo">Distância:</span> ${escapeHtml(r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 }))} km</div>` : ''}
         </div>` : ''}
         ${r.descricao ? `<div class="descricao">${escapeHtml(r.descricao)}</div>` : ''}
         <div class="card-acoes">
@@ -928,10 +1026,11 @@
     { titulo: 'Frete', largura: 13 },
     { titulo: 'Pedágio', largura: 12 },
     { titulo: 'Total', largura: 13 },
+    { titulo: 'Saída', largura: 30 },
     { titulo: 'Origem', largura: 30 },
-    { titulo: 'Nº Origem', largura: 9 },
     { titulo: 'Destino', largura: 30 },
-    { titulo: 'Nº Destino', largura: 9 },
+    { titulo: 'Retorno', largura: 30 },
+    { titulo: 'Distância (km)', largura: 12 },
     { titulo: 'Descrição', largura: 40 },
   ];
   const COLUNAS_VALOR_EXCEL = [5, 6, 7]; // Frete, Pedágio, Total
@@ -948,10 +1047,11 @@
         Number(r.valorFrete) || 0,
         valorPedagio(r),
         valorTotal(r),
-        r.localOrigem || '',
-        r.localOrigemNumero || '',
-        r.localDestino || '',
-        r.localDestinoNumero || '',
+        r.localSaida || '',
+        formatarLocalComNumero(r.localOrigem, r.localOrigemNumero),
+        formatarLocalComNumero(r.localDestino, r.localDestinoNumero),
+        r.localRetorno || '',
+        r.distanciaKm ? r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '',
         r.descricao || '',
       ];
     });
@@ -1438,135 +1538,135 @@
   periodoDashboard.addEventListener('change', renderDashboard);
   pagoDashboard.addEventListener('change', renderDashboard);
 
-  // ---------- Autocomplete de endereço (busca online via OpenStreetMap/Nominatim) ----------
-  // Só funciona com internet disponível; sem conexão, o campo continua digitável normalmente.
-  // A busca é priorizada (não restrita) para o litoral centro-norte de SC através de um "viewbox",
-  // e o resultado exibido/salvo é resumido para "Rua, Cidade - UF" em vez do endereço completo.
+  // ---------- Google Maps: autocomplete de endereço e cálculo de distância ----------
+  // Só funciona com internet disponível e a chave configurada em js/maps-config.js;
+  // sem isso, os campos continuam digitáveis normalmente, só sem sugestão/distância.
 
-  // Cobre a faixa do litoral onde a empresa opera (Tijucas até Bombinhas). Como bounded=0, é só
-  // uma preferência: buscas em outras regiões continuam funcionando normalmente.
-  const LITORAL_VIEWBOX = '-48.75,-26.85,-48.45,-27.40'; // lon_min,lat_max,lon_max,lat_min
+  // Cobre a faixa do litoral onde a empresa opera (Tijucas até Bombinhas). É só uma
+  // preferência de busca (bias), não restringe resultados de outras regiões.
+  const LIMITES_LITORAL = { south: -27.40, west: -48.75, north: -26.85, east: -48.45 };
 
-  // Cidades do litoral centro-norte de SC que devem aparecer primeiro nas sugestões.
-  // Itapema tem prioridade máxima (0); as demais vêm logo em seguida (1); o resto fica por último (2).
-  const PRIORIDADE_CIDADES = new Map([
-    ['itapema', 0],
-    ['balneario camboriu', 1], ['camboriu', 1], ['itajai', 1], ['navegantes', 1],
-    ['tijucas', 1], ['porto belo', 1], ['bombinhas', 1], ['governador celso ramos', 1],
-  ]);
+  const CAMPOS_ENDERECO = [inputLocalSaida, inputLocalOrigem, inputLocalDestino, inputLocalRetorno];
 
-  function normalizarTexto(str) {
-    return (str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  let directionsService = null;
+  let distanciaCalculadaKm = null;
+
+  function limparDistanciaCalculada() {
+    distanciaCalculadaKm = null;
+    rotaDistanciaResultado.hidden = true;
+    rotaDistanciaResultado.textContent = '';
   }
 
-  const SIGLAS_ESTADOS = {
-    'Acre': 'AC', 'Alagoas': 'AL', 'Amapá': 'AP', 'Amazonas': 'AM', 'Bahia': 'BA', 'Ceará': 'CE',
-    'Distrito Federal': 'DF', 'Espírito Santo': 'ES', 'Goiás': 'GO', 'Maranhão': 'MA', 'Mato Grosso': 'MT',
-    'Mato Grosso do Sul': 'MS', 'Minas Gerais': 'MG', 'Pará': 'PA', 'Paraíba': 'PB', 'Paraná': 'PR',
-    'Pernambuco': 'PE', 'Piauí': 'PI', 'Rio de Janeiro': 'RJ', 'Rio Grande do Norte': 'RN',
-    'Rio Grande do Sul': 'RS', 'Rondônia': 'RO', 'Roraima': 'RR', 'Santa Catarina': 'SC',
-    'São Paulo': 'SP', 'Sergipe': 'SE', 'Tocantins': 'TO',
+  function exibirDistancia(km) {
+    distanciaCalculadaKm = km;
+    rotaDistanciaResultado.hidden = false;
+    rotaDistanciaResultado.textContent =
+      `Distância total percorrida: ${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
+  }
+
+  // O Google chama window.gm_authFailure quando a chave é rejeitada (não habilitada
+  // para o domínio atual, API desligada no projeto, billing ausente, etc.). Isso
+  // acontece de forma assíncrona, independente do onload do <script>, então o
+  // handler precisa estar registrado antes do script ser injetado.
+  window.gm_authFailure = function () {
+    console.error(
+      `Google Maps: chave de API recusada (gm_authFailure). Verifique no Google Cloud ` +
+      `Console se "Maps JavaScript API" e "Places API" estão habilitadas para o projeto ` +
+      `e se ${window.location.origin} está na lista de referrers HTTP permitidos da chave.`
+    );
+    mostrarToast('Google Maps recusou a chave de API — endereços seguem digitáveis manualmente (veja detalhes no console).');
   };
 
-  function formatarEnderecoResumido(addr) {
-    if (!addr) return '';
-    const rua = addr.road || addr.pedestrian || addr.residential || addr.suburb || '';
-    const cidade = addr.city || addr.town || addr.village || addr.municipality || '';
-    const uf = SIGLAS_ESTADOS[addr.state] || '';
-    const cidadeUf = [cidade, uf].filter(Boolean).join(' - ');
-    return [rua, cidadeUf].filter(Boolean).join(', ');
+  function carregarGoogleMaps() {
+    return new Promise((resolve, reject) => {
+      if (window.google && window.google.maps && window.google.maps.places) { resolve(); return; }
+      const chave = window.GOOGLE_MAPS_API_KEY;
+      if (!chave || !navigator.onLine) { reject(new Error('Google Maps indisponível')); return; }
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(chave)}&libraries=places`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Falha ao carregar Google Maps'));
+      document.head.appendChild(script);
+    });
   }
 
-  const listaOrigem = document.getElementById('listaOrigem');
-  const listaDestino = document.getElementById('listaDestino');
-  const statusOrigem = document.getElementById('statusOrigem');
-  const statusDestino = document.getElementById('statusDestino');
-
-  function esconderSugestoes(listaEl) {
-    listaEl.hidden = true;
-    listaEl.innerHTML = '';
+  function anexarAutocompleteEndereco(input, bounds, aoSelecionar) {
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+      componentRestrictions: { country: 'br' },
+      fields: ['formatted_address'],
+      bounds,
+    });
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place && place.formatted_address) input.value = place.formatted_address;
+      if (aoSelecionar) aoSelecionar();
+    });
   }
 
-  async function buscarEnderecos(termo, signal) {
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8'
-      + '&countrycodes=br&accept-language=pt-BR&viewbox=' + LITORAL_VIEWBOX + '&bounded=0'
-      + '&q=' + encodeURIComponent(termo);
-    const resp = await fetch(url, { signal });
-    if (!resp.ok) throw new Error('Falha na busca de endereço');
-    return resp.json();
+  function configurarAutocompleteGoogle() {
+    if (!window.google || !google.maps || !google.maps.places) {
+      throw new Error('Biblioteca "places" do Google Maps não carregou — confirme se a Places API está habilitada para a chave.');
+    }
+    const bounds = new google.maps.LatLngBounds(
+      { lat: LIMITES_LITORAL.south, lng: LIMITES_LITORAL.west },
+      { lat: LIMITES_LITORAL.north, lng: LIMITES_LITORAL.east }
+    );
+    CAMPOS_ENDERECO.forEach(input => anexarAutocompleteEndereco(input, bounds, limparDistanciaCalculada));
+    anexarAutocompleteEndereco(inputEnderecoBaseConfig, bounds, null);
   }
 
-  function configurarAutocomplete(input, statusEl, listaEl, numeroInput) {
-    let debounceTimer = null;
-    let abortController = null;
+  CAMPOS_ENDERECO.forEach(input => {
+    input.addEventListener('input', limparDistanciaCalculada);
+  });
 
-    input.addEventListener('input', () => {
-      const termo = input.value.trim();
-      clearTimeout(debounceTimer);
-      if (abortController) abortController.abort();
-      esconderSugestoes(listaEl);
+  async function calcularDistanciaRota() {
+    const pontos = CAMPOS_ENDERECO.map(input => input.value.trim()).filter(Boolean);
+    if (pontos.length < 2) {
+      mostrarToast('Preencha ao menos dois endereços para calcular a distância.');
+      return;
+    }
+    if (!window.google || !window.google.maps) {
+      mostrarToast('Google Maps indisponível. Verifique sua conexão.');
+      return;
+    }
 
-      if (termo.length < 4) {
-        statusEl.textContent = '';
-        return;
-      }
-      if (!navigator.onLine) {
-        statusEl.textContent = 'Sem internet — digite o endereço manualmente';
-        return;
-      }
+    if (!directionsService) directionsService = new google.maps.DirectionsService();
+    const origem = pontos[0];
+    const destino = pontos[pontos.length - 1];
+    const waypoints = pontos.slice(1, -1).map(location => ({ location, stopover: true }));
 
-      statusEl.textContent = 'Buscando endereço...';
-      debounceTimer = setTimeout(async () => {
-        abortController = new AbortController();
-        try {
-          const resultados = await buscarEnderecos(termo, abortController.signal);
-          if (input.value.trim() !== termo) return; // usuário já digitou algo novo
-
-          const opcoes = resultados
-            .map(r => {
-              const cidade = normalizarTexto(r.address && (r.address.city || r.address.town || r.address.village || r.address.municipality));
-              return {
-                texto: formatarEnderecoResumido(r.address),
-                numero: (r.address && r.address.house_number) || '',
-                prioridade: PRIORIDADE_CIDADES.has(cidade) ? PRIORIDADE_CIDADES.get(cidade) : 2,
-              };
-            })
-            .filter(o => o.texto)
-            .sort((a, b) => a.prioridade - b.prioridade)
-            .slice(0, 5);
-
-          if (!opcoes.length) {
-            statusEl.textContent = 'Nenhum endereço encontrado';
-            return;
-          }
-          statusEl.textContent = '';
-          listaEl.innerHTML = opcoes.map((o, i) =>
-            `<button type="button" data-i="${i}">${escapeHtml(o.texto)}</button>`
-          ).join('');
-          listaEl.hidden = false;
-          listaEl.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => {
-              const opcao = opcoes[Number(btn.dataset.i)];
-              input.value = opcao.texto;
-              if (opcao.numero && !numeroInput.value) numeroInput.value = opcao.numero;
-              esconderSugestoes(listaEl);
-              statusEl.textContent = '';
-            });
-          });
-        } catch (e) {
-          if (e.name === 'AbortError') return;
-          statusEl.textContent = 'Não foi possível buscar agora';
+    directionsService.route({
+      origin: origem,
+      destination: destino,
+      waypoints,
+      optimizeWaypoints: false,
+      travelMode: google.maps.TravelMode.DRIVING,
+    }, (resultado, status) => {
+      if (status === 'OK' && resultado.routes[0]) {
+        const metros = resultado.routes[0].legs.reduce((soma, leg) => soma + leg.distance.value, 0);
+        const km = metros / 1000;
+        exibirDistancia(km);
+        const config = getConfig();
+        if (config.valorPorKm) {
+          inputValorFrete.value = formatarCentavos(Math.round(km * config.valorPorKm * 100));
+          atualizarTotalForm();
+          mostrarToast('Distância calculada! Valor do frete sugerido preenchido.');
+        } else {
+          mostrarToast('Distância calculada!');
         }
-      }, 600);
-    });
-
-    input.addEventListener('blur', () => {
-      setTimeout(() => esconderSugestoes(listaEl), 150);
+      } else {
+        mostrarToast('Não foi possível calcular a rota entre os endereços informados.');
+      }
     });
   }
 
-  configurarAutocomplete(inputLocalOrigem, statusOrigem, listaOrigem, inputLocalOrigemNumero);
-  configurarAutocomplete(inputLocalDestino, statusDestino, listaDestino, inputLocalDestinoNumero);
+  btnCalcularDistancia.addEventListener('click', calcularDistanciaRota);
+
+  carregarGoogleMaps().then(configurarAutocompleteGoogle).catch(erro => {
+    console.warn('Google Maps não carregado — endereços seguem digitáveis manualmente, sem autocomplete/distância.', erro);
+    if (navigator.onLine) mostrarToast(`Google Maps indisponível: ${erro.message}`);
+  });
 
   // ---------- Placa em maiúsculas ----------
 

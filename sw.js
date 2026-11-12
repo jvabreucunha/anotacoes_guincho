@@ -1,10 +1,11 @@
-const CACHE_NAME = 'guincho-cache-v37';
+const CACHE_NAME = 'guincho-cache-v38';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './css/style.css',
   './js/app.js',
+  './js/maps-config.js',
   './js/xlsx-lite.js',
   './js/pdf-export.js',
   './js/vendor/chart.umd.min.js',

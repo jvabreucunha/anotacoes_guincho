@@ -177,6 +177,11 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--navy-700);
 }
 
+input:disabled {
+  background: var(--bg-light);
+  color: var(--text-muted);
+}
+
 /* Remove setas do input numérico */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
@@ -221,62 +226,20 @@ input[type="number"] {
   border: none;
 }
 
-/* Campo com sugestões (autocomplete de endereço) */
+/* Rota e distância (Saída / Onde pegou / Onde deixou / Retorno) */
 
-.field-autocomplete {
-  position: relative;
+.rota-distancia {
+  margin-bottom: 12px;
 }
 
-.field-autocomplete .autocomplete-status,
-.field-autocomplete .autocomplete-lista {
-  flex-basis: 100%;
-}
-
-.autocomplete-status {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-muted);
-  min-height: 14px;
-}
-
-.autocomplete-status:empty {
-  display: none;
-}
-
-.autocomplete-lista {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  margin-top: 4px;
+.rota-distancia-resultado {
+  margin-top: 8px;
+  padding: 10px 12px;
   background: var(--bg-white);
   border: 2px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(10, 24, 48, 0.15);
-  z-index: 15;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.autocomplete-lista button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--line);
-  padding: 12px 14px;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--text-dark);
-}
-
-.autocomplete-lista button:last-child {
-  border-bottom: none;
-}
-
-.autocomplete-lista button:active {
-  background: var(--bg-light);
+  font-weight: 700;
+  color: var(--navy-800);
 }
 
 button {
@@ -1242,6 +1205,66 @@ button {
 .rota-trecho .autocomplete-status {
   flex-basis: 100%;
   padding: 0 0 6px 2px;
+}
+
+/* Saída/Retorno (endereço base) dentro do cartão do trajeto */
+.rota-trecho[hidden] {
+  display: none;
+}
+
+.rota-tag {
+  flex: 0 0 auto;
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--bg-light);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+#form-registro .rota-trecho-base input {
+  font-size: 15px;
+}
+
+.rota-opcao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.rota-opcao input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--navy-700);
+}
+
+#form-registro .rota-distancia {
+  margin: 0;
+}
+
+#form-registro .rota-distancia .btn-secondary {
+  margin-top: 0;
+  padding: 9px;
+  font-size: 15px;
+  border-radius: var(--campo-raio);
+}
+
+#form-registro .rota-distancia-resultado {
+  border-radius: var(--campo-raio);
+  font-size: 14px;
+}
+
+/* Sugestões do Google Places acima do menu inferior */
+.pac-container {
+  z-index: 1000;
 }
 
 /* Placa no estilo Mercosul */
