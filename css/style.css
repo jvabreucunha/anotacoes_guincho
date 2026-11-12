@@ -27,6 +27,8 @@
 html, body {
   margin: 0;
   padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg-light);
   color: var(--text-dark);
@@ -98,19 +100,15 @@ body {
 }
 
 .field-grow {
-  flex: 1 1 200px;
+  flex: 1 1 0;
 }
 
-.field-placa {
-  flex: 0 0 150px;
-}
-
-.field-valor {
-  flex: 1 1 130px;
+.field-num {
+  flex: 0 0 72px;
 }
 
 .placa-input {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-align: center;
@@ -165,14 +163,18 @@ textarea {
   resize: vertical;
 }
 
+/* iOS ignora a largura do input de data se não tirar a aparência nativa */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  min-height: 43px;
+  text-align: left;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--navy-700);
-}
-
-input:disabled {
-  background: var(--bg-light);
-  color: var(--text-muted);
 }
 
 /* Remove setas do input numérico */
@@ -219,53 +221,62 @@ input[type="number"] {
   border: none;
 }
 
-.datahora-input {
-  display: flex;
-  align-items: stretch;
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-white);
-  overflow: hidden;
+/* Campo com sugestões (autocomplete de endereço) */
+
+.field-autocomplete {
+  position: relative;
 }
 
-.datahora-input:focus-within {
-  border-color: var(--navy-700);
+.field-autocomplete .autocomplete-status,
+.field-autocomplete .autocomplete-lista {
+  flex-basis: 100%;
 }
 
-.datahora-input input {
-  min-width: 0;
-  border: none;
-  border-radius: 0;
-  padding: 9px 12px;
+.autocomplete-status {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  min-height: 14px;
 }
 
-.datahora-input input:focus {
-  border: none;
+.autocomplete-status:empty {
+  display: none;
 }
 
-.datahora-input input[type="date"] {
-  flex: 3;
-}
-
-.datahora-input input[type="time"] {
-  flex: 2;
-  border-left: 2px solid var(--line);
-}
-
-/* Rota e distância (Saída / Onde pegou / Onde deixou / Retorno) */
-
-.rota-distancia {
-  margin-bottom: 12px;
-}
-
-.rota-distancia-resultado {
-  margin-top: 8px;
-  padding: 10px 12px;
+.autocomplete-lista {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
   background: var(--bg-white);
   border: 2px solid var(--line);
   border-radius: 10px;
-  font-weight: 700;
-  color: var(--navy-800);
+  box-shadow: 0 8px 20px rgba(10, 24, 48, 0.15);
+  z-index: 15;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.autocomplete-lista button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-dark);
+}
+
+.autocomplete-lista button:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-lista button:active {
+  background: var(--bg-light);
 }
 
 button {
@@ -777,80 +788,136 @@ button {
   vertical-align: 0;
 }
 
-/* Dashboard */
+/* Dashboard — mesmo padrão visual do formulário: cartões brancos de borda suave,
+   rótulos pequenos em maiúsculas, destaque azul-marinho com valores em dourado. */
 
 .dashboard-filtros {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .dashboard-stats {
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-bottom: 16px;
-}
-
-.stat-tile {
-  flex: 1;
-  background: #fff;
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 8px;
-  text-align: center;
-}
-
-.stat-tile .stat-valor {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--navy-800);
-}
-
-.stat-tile .stat-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.dashboard-grafico {
-  background: #fff;
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 14px 10px;
-  margin-bottom: 16px;
-}
-
-.grafico-cabecalho {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: 10px;
 }
 
-.grafico-titulo {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-muted);
+.hero-faturado {
+  background: var(--navy-900);
+  color: #fff;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
 }
 
-.grafico-legenda {
+.hero-rotulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-on-dark-muted);
+}
+
+.hero-valor {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--gold-400);
+}
+
+
+.recebimento {
+  margin-top: 14px;
+}
+
+.recebimento-barra {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  gap: 2px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.recebimento-barra span {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.seg-recebido { background: #2e9e5b; }
+.seg-areceber { background: var(--gold-500); }
+
+.recebimento-legenda {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--text-on-dark-muted);
+}
+
+.recebimento-legenda i,
+.legenda i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: 0;
+}
+
+.recebimento-legenda strong {
+  color: #fff;
+}
+
+.dashboard-grafico,
+.dashboard-ranking,
+.dashboard-semana {
+  background: var(--bg-white);
+  border: 1.5px solid #dfe5ee;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(10, 24, 48, 0.06);
+}
+
+.dashboard-grafico,
+.dashboard-ranking,
+.dashboard-semana {
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.dashboard-ranking:empty {
+  display: none;
+}
+
+.card-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.card-titulo {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+
+.legenda {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-}
-
-.grafico-legenda .ponto {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--gold-500);
-  display: inline-block;
+  white-space: nowrap;
 }
 
 .grafico-canvas-wrap {
   position: relative;
-  height: 140px;
+  height: 170px;
 }
 
 .grafico-caption {
@@ -859,26 +926,604 @@ button {
   border-top: 1px solid var(--line);
   font-size: 13px;
   color: var(--text-dark);
-  min-height: 18px;
+  min-height: 40px;
 }
 
-.grafico-caption strong {
+.caption-titulo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.caption-titulo span {
+  color: var(--text-muted);
+}
+
+
+.ranking-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ranking-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.ranking-nome {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-valor {
+  font-weight: 800;
   color: var(--navy-800);
+  white-space: nowrap;
 }
 
-.dashboard-subtitulo {
-  font-size: 15px;
-  margin: 0 0 10px;
+.ranking-trilho {
+  height: 8px;
+  margin: 5px 0 4px;
+  border-radius: 4px;
+  background: var(--bg-light);
+  overflow: hidden;
 }
 
-.ranking-chart-wrap {
-  position: relative;
-  background: #fff;
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  padding: 10px 12px;
+.ranking-barra {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--chart-navy);
+}
+
+
+.semana-colunas {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+}
+
+.semana-coluna {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.semana-qtd {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-height: 15px;
+}
+
+.semana-trilho {
+  width: 100%;
+  max-width: 26px;
+  height: 70px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--bg-light);
+  border-radius: 4px;
+}
+
+.semana-barra {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: #b7c7dc;
+}
+
+.semana-coluna.destaque .semana-barra {
+  background: var(--chart-navy);
+}
+
+.semana-coluna.destaque .semana-qtd,
+.semana-coluna.destaque .semana-nome {
+  color: var(--text-dark);
+  font-weight: 800;
+}
+
+.semana-nome {
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 
 @media (min-width: 600px) {
   html, body { font-size: 16px; }
+}
+
+
+/* ================= Formulário de serviço =================
+   Todos os campos seguem o mesmo padrão: rótulo pequeno em cima, caixa branca
+   de 46px com ícone à esquerda, borda suave e destaque azul no foco. */
+
+#form-registro {
+  --campo-altura: 46px;
+  --campo-raio: 12px;
+  --campo-borda: #dfe5ee;
+  --campo-sombra: 0 1px 2px rgba(10, 24, 48, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.f-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.f-grid-60 {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.f-campo {
+  display: block;
+  min-width: 0;
+}
+
+.f-rotulo {
+  display: block;
+  margin: 0 0 4px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.f-caixa {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--campo-altura);
+  background: var(--bg-white);
+  border: 1.5px solid var(--campo-borda);
+  border-radius: var(--campo-raio);
+  box-shadow: var(--campo-sombra);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.f-caixa:focus-within,
+.rota-card:focus-within,
+.placa-mercosul:focus-within {
+  border-color: var(--navy-700);
+  box-shadow: 0 0 0 3px rgba(28, 77, 130, 0.14);
+}
+
+.f-icone {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-left: 12px;
+  fill: none;
+  stroke: var(--gold-500);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.f-prefixo {
+  flex: 0 0 auto;
+  margin-left: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--gold-500);
+}
+
+#form-registro .f-caixa input,
+#form-registro .f-caixa select,
+#form-registro .f-caixa textarea,
+#form-registro .rota-trecho input,
+#form-registro .placa-mercosul input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  border-radius: var(--campo-raio);
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 12px 10px 8px;
+  font-size: 16px;
+  color: var(--text-dark);
+}
+
+#form-registro .f-caixa select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 30px;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%235c6b80' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+#form-registro .f-caixa input[type="date"] {
+  min-height: 0;
+}
+
+#form-registro input::placeholder,
+#form-registro textarea::placeholder {
+  color: #9aa6b6;
+}
+
+.f-caixa-texto {
+  align-items: flex-start;
+}
+
+.f-caixa-texto .f-icone {
+  margin-top: 13px;
+}
+
+#form-registro .f-caixa textarea {
+  resize: none;
+  min-height: 44px;
+  line-height: 1.35;
+}
+
+/* Trajeto: um único cartão com a linha "origem → destino" desenhada ao lado */
+.rota-card {
+  display: flex;
+  background: var(--bg-white);
+  border: 1.5px solid var(--campo-borda);
+  border-radius: var(--campo-raio);
+  box-shadow: var(--campo-sombra);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.rota-trilho {
+  flex: 0 0 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 17px 0 13px;
+}
+
+.rota-ponto {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 3px solid var(--gold-500);
+  background: var(--bg-white);
+}
+
+.rota-linha {
+  flex: 1;
+  width: 0;
+  margin: 3px 0;
+  border-left: 2px dashed #c9d2de;
+}
+
+.rota-pino {
+  width: 17px;
+  height: 17px;
+  fill: var(--navy-700);
+  stroke: var(--bg-white);
+  stroke-width: 1.5;
+}
+
+.rota-campos {
+  flex: 1;
+  min-width: 0;
+}
+
+.rota-trecho {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.rota-trecho + .rota-trecho {
+  border-top: 1px solid var(--line);
+}
+
+#form-registro .rota-trecho input {
+  flex: 1 1 0;
+  padding-left: 2px;
+  min-height: 44px;
+}
+
+#form-registro .rota-trecho input.rota-num {
+  flex: 0 0 64px;
+  text-align: center;
+  padding: 10px 6px;
+  border-left: 1px solid var(--line);
+  border-radius: 0 var(--campo-raio) var(--campo-raio) 0;
+}
+
+.rota-trecho .autocomplete-status {
+  flex-basis: 100%;
+  padding: 0 0 6px 2px;
+}
+
+/* Placa no estilo Mercosul */
+.placa-mercosul {
+  display: flex;
+  flex-direction: column;
+  height: var(--campo-altura);
+  background: var(--bg-white);
+  border: 1.5px solid var(--campo-borda);
+  border-radius: var(--campo-raio);
+  box-shadow: var(--campo-sombra);
+  overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.placa-faixa {
+  flex: 0 0 11px;
+  background: var(--navy-700);
+  color: #fff;
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  line-height: 11px;
+  text-align: center;
+}
+
+#form-registro .placa-mercosul input {
+  flex: 1 1 auto;
+  padding: 0 8px;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-family: "DIN Alternate", "Bahnschrift", "Arial Narrow", system-ui, sans-serif;
+  border-radius: 0;
+}
+
+/* Resumo: chave de "pago" + total em destaque */
+.resumo-servico {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--navy-900);
+  border-radius: var(--campo-raio);
+  color: #fff;
+}
+
+.pago-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pago-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.switch-trilho {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: #33465f;
+  transition: background .2s;
+}
+
+.switch-bolinha {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform .2s;
+}
+
+.pago-switch input:checked + .switch-trilho {
+  background: #2e9e5b;
+}
+
+.pago-switch input:checked + .switch-trilho .switch-bolinha {
+  transform: translateX(18px);
+}
+
+.pago-switch input:focus-visible + .switch-trilho {
+  outline: 2px solid var(--gold-400);
+  outline-offset: 2px;
+}
+
+.switch-texto {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-on-dark-muted);
+  transition: color .2s;
+}
+
+.pago-switch input:checked ~ .switch-texto {
+  color: #fff;
+}
+
+.resumo-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.resumo-total span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-on-dark-muted);
+}
+
+.resumo-total strong {
+  font-size: 21px;
+  color: var(--gold-400);
+}
+
+#form-registro .btn-primary,
+#form-registro .btn-secondary,
+#form-registro .btn-danger {
+  margin-top: 0;
+  min-height: 48px;
+  border-radius: var(--campo-raio);
+}
+
+#form-registro .btn-primary {
+  box-shadow: 0 4px 12px rgba(198, 154, 61, 0.35);
+}
+
+/* Frete e pedágio discriminados (lista de serviços e relatório) */
+.registro-card .valores-detalhe {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.relatorio-resumo .total-detalhe {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.relatorio-resumo .total-detalhe span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-on-dark-muted);
+}
+
+.relatorio-resumo .total-detalhe strong {
+  font-size: 17px;
+  color: #fff;
+}
+
+.grupo-card {
+  gap: 12px;
+}
+
+.grupo-card .grupo-detalhe {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Dashboard consolidado: números principais num cartão só e cartões mais compactos */
+.hero-faturado {
+  padding: 14px 14px 12px;
+}
+
+
+.hero-valor {
+  font-size: 30px;
+}
+
+
+.recebimento {
+  margin-top: 10px;
+}
+
+.hero-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hero-kpis > div + div {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  padding-left: 10px;
+}
+
+.hero-kpi-rotulo {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-on-dark-muted);
+}
+
+.hero-kpi-valor {
+  margin-top: 2px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+.dashboard-grafico,
+.dashboard-ranking,
+.dashboard-semana {
+  padding: 12px 14px;
+}
+
+.card-cabecalho {
+  margin-bottom: 10px;
+}
+
+.grafico-canvas-wrap {
+  height: 150px;
+}
+
+.semana-trilho {
+  height: 56px;
+}
+
+.semana-qtd {
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.ranking-lista {
+  gap: 9px;
+}
+
+.ranking-trilho {
+  height: 6px;
+  margin: 4px 0 3px;
+}
+
+
+/* Dashboard limpo: só os números necessários */
+.caption-titulo {
+  align-items: baseline;
+  color: var(--text-muted);
+}
+
+.caption-titulo strong {
+  font-size: 15px;
+  color: var(--navy-800);
+}
+
+.grafico-caption {
+  min-height: 0;
+}
+
+.card-cabecalho {
+  align-items: center;
+}
+
+.legenda {
+  flex-direction: row;
+  gap: 12px;
 }

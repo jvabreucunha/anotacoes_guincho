@@ -4,7 +4,6 @@
   const STORAGE_KEY = 'guincho_registros_v1';
   const STORAGE_KEY_SEGURADORAS = 'guincho_seguradoras_v1';
   const STORAGE_KEY_CLIENTES = 'guincho_clientes_v1';
-  const STORAGE_KEY_CONFIG = 'guincho_config_v1';
 
   // ---------- Persistência ----------
 
@@ -34,20 +33,6 @@
 
   function setClientes(lista) {
     localStorage.setItem(STORAGE_KEY_CLIENTES, JSON.stringify(lista));
-  }
-
-  function getConfig() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      console.error('Erro ao ler configurações', e);
-      return {};
-    }
-  }
-
-  function setConfig(config) {
-    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
   }
 
   function gerarId() {
@@ -85,6 +70,27 @@
 
   function formatarMoeda(valor) {
     return (Number(valor) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  // Valor total do serviço = frete + pedágio. Registros antigos não têm pedágio (conta como 0).
+  function valorTotal(r) {
+    return (Number(r.valorFrete) || 0) + (Number(r.valorPedagio) || 0);
+  }
+
+  function valorPedagio(r) {
+    return Number(r.valorPedagio) || 0;
+  }
+
+  // Soma frete, pedágio e total de uma lista de serviços (para relatórios e exportações)
+  function somarValores(registros) {
+    const somas = registros.reduce((soma, r) => {
+      soma.frete += Number(r.valorFrete) || 0;
+      soma.pedagio += valorPedagio(r);
+      soma.total += valorTotal(r);
+      return soma;
+    }, { frete: 0, pedagio: 0, total: 0 });
+    const centavos = v => Math.round(v * 100) / 100;
+    return { frete: centavos(somas.frete), pedagio: centavos(somas.pedagio), total: centavos(somas.total) };
   }
 
   // Máscara de moeda: os dígitos digitados são sempre lidos como centavos (da direita pra esquerda).
@@ -149,16 +155,13 @@
   const inputHoraRegistro = document.getElementById('horaRegistro');
   const inputPlacaVeiculo = document.getElementById('placaVeiculo');
   const inputValorFrete = document.getElementById('valorFrete');
+  const inputValorPedagio = document.getElementById('valorPedagio');
+  const totalForm = document.getElementById('totalForm');
   const inputServicoPago = document.getElementById('servicoPago');
-  const inputSaidaRetornoDiferente = document.getElementById('saidaRetornoDiferente');
-  const campoLocalSaida = document.getElementById('campoLocalSaida');
-  const inputLocalSaida = document.getElementById('localSaida');
   const inputLocalOrigem = document.getElementById('localOrigem');
+  const inputLocalOrigemNumero = document.getElementById('localOrigemNumero');
   const inputLocalDestino = document.getElementById('localDestino');
-  const campoLocalRetorno = document.getElementById('campoLocalRetorno');
-  const inputLocalRetorno = document.getElementById('localRetorno');
-  const btnCalcularDistancia = document.getElementById('btnCalcularDistancia');
-  const rotaDistanciaResultado = document.getElementById('rotaDistanciaResultado');
+  const inputLocalDestinoNumero = document.getElementById('localDestinoNumero');
   const clienteSelect = document.getElementById('clienteSelect');
   const linhaNovoCliente = document.getElementById('linhaNovoCliente');
   const inputClienteNomeNovo = document.getElementById('clienteNomeNovo');
@@ -203,15 +206,12 @@
   const dashboardGrafico = document.getElementById('dashboardGrafico');
   const dashboardRanking = document.getElementById('dashboardRanking');
   const dashboardVazio = document.getElementById('dashboardVazio');
+  const dashboardSemana = document.getElementById('dashboardSemana');
 
   const formCliente = document.getElementById('form-cliente');
   const inputNovoClienteNome = document.getElementById('novoClienteNome');
   const listaClientesEl = document.getElementById('listaClientes');
   const clientesVazio = document.getElementById('clientesVazio');
-
-  const formConfig = document.getElementById('form-config');
-  const inputEnderecoBaseConfig = document.getElementById('enderecoBaseConfig');
-  const inputValorPorKmConfig = document.getElementById('valorPorKmConfig');
 
   const toastEl = document.getElementById('toast');
 
@@ -233,7 +233,6 @@
     dashboard: document.getElementById('view-dashboard'),
     relatorio: document.getElementById('view-relatorio'),
     clientes: document.getElementById('view-clientes'),
-    config: document.getElementById('view-config'),
   };
   const tabButtons = document.querySelectorAll('.tab-btn');
 
@@ -244,11 +243,9 @@
     if (nome === 'dashboard') renderDashboard();
     if (nome === 'relatorio') { renderFiltroClienteRelatorio(); renderRelatorio(); }
     if (nome === 'clientes') renderListaClientes();
-    if (nome === 'config') carregarFormConfig();
     if (nome === 'nova' && !inputEditingId.value) {
       inputDataRegistro.value = agoraParaDataInput();
       inputHoraRegistro.value = agoraParaHoraInput();
-      sincronizarSaidaRetornoComBase();
     }
   }
 
@@ -436,72 +433,34 @@
     mostrarToast('Cliente cadastrado!');
   });
 
-  // ---------- Configurações (endereço base e valor por km) ----------
-
-  function carregarFormConfig() {
-    const config = getConfig();
-    inputEnderecoBaseConfig.value = config.enderecoBase || '';
-    inputValorPorKmConfig.value = config.valorPorKm ? formatarCentavos(Math.round(config.valorPorKm * 100)) : '';
-  }
-
-  formConfig.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    setConfig({
-      enderecoBase: inputEnderecoBaseConfig.value.trim(),
-      valorPorKm: valorMascaradoParaNumero(inputValorPorKmConfig.value),
-    });
-    mostrarToast('Configurações salvas!');
-  });
-
   // ---------- Máscara de moeda ----------
 
   aplicarMascaraMoeda(inputValorFrete);
+  aplicarMascaraMoeda(inputValorPedagio);
+
+  function atualizarTotalForm() {
+    totalForm.textContent = formatarMoeda(
+      valorMascaradoParaNumero(inputValorFrete.value) + valorMascaradoParaNumero(inputValorPedagio.value)
+    );
+  }
+  inputValorFrete.addEventListener('input', atualizarTotalForm);
+  inputValorPedagio.addEventListener('input', atualizarTotalForm);
   aplicarMascaraMoeda(valorMinLista);
   aplicarMascaraMoeda(valorMaxLista);
   aplicarMascaraMoeda(valorMinRelatorio);
   aplicarMascaraMoeda(valorMaxRelatorio);
-  aplicarMascaraMoeda(inputValorPorKmConfig);
 
   // ---------- Salvar / editar / excluir ----------
-
-  // Por padrão Saída/Retorno seguem o endereço base (config) e ficam ocultos;
-  // marcando "diferente da base" o usuário revela os campos para digitar outro endereço.
-  let saidaPersonalizada = '';
-  let retornoPersonalizada = '';
-
-  function aplicarEstadoSaidaRetorno() {
-    const diferente = inputSaidaRetornoDiferente.checked;
-    inputLocalSaida.disabled = !diferente;
-    inputLocalRetorno.disabled = !diferente;
-    campoLocalSaida.hidden = !diferente;
-    campoLocalRetorno.hidden = !diferente;
-  }
-
-  function sincronizarSaidaRetornoComBase() {
-    if (inputSaidaRetornoDiferente.checked) {
-      inputLocalSaida.value = saidaPersonalizada;
-      inputLocalRetorno.value = retornoPersonalizada;
-    } else {
-      saidaPersonalizada = inputLocalSaida.value;
-      retornoPersonalizada = inputLocalRetorno.value;
-      const config = getConfig();
-      inputLocalSaida.value = config.enderecoBase || '';
-      inputLocalRetorno.value = config.enderecoBase || '';
-    }
-    aplicarEstadoSaidaRetorno();
-  }
-
-  inputSaidaRetornoDiferente.addEventListener('change', sincronizarSaidaRetornoComBase);
 
   function limparFormulario() {
     form.reset();
     inputEditingId.value = '';
     inputDataRegistro.value = agoraParaDataInput();
     inputHoraRegistro.value = agoraParaHoraInput();
-    limparDistanciaCalculada();
-    saidaPersonalizada = '';
-    retornoPersonalizada = '';
-    sincronizarSaidaRetornoComBase();
+    inputValorPedagio.value = '0,00';
+    atualizarTotalForm();
+    esconderSugestoes(listaOrigem);
+    esconderSugestoes(listaDestino);
     btnCancelarEdicao.hidden = true;
     btnExcluirRegistro.hidden = true;
     btnSalvar.textContent = 'Salvar serviço';
@@ -518,23 +477,15 @@
     inputHoraRegistro.value = isoParaHoraInput(registro.dataHora);
     inputPlacaVeiculo.value = registro.placa || '';
     inputValorFrete.value = registro.valorFrete ? formatarCentavos(Math.round(registro.valorFrete * 100)) : '';
+    inputValorPedagio.value = formatarCentavos(Math.round((Number(registro.valorPedagio) || 0) * 100));
+    atualizarTotalForm();
     inputServicoPago.checked = !!registro.pago;
-    inputSaidaRetornoDiferente.checked = !!registro.saidaRetornoDiferente;
-    aplicarEstadoSaidaRetorno();
-    inputLocalSaida.value = registro.localSaida || '';
     inputLocalOrigem.value = registro.localOrigem || '';
+    inputLocalOrigemNumero.value = registro.localOrigemNumero || '';
     inputLocalDestino.value = registro.localDestino || '';
-    inputLocalRetorno.value = registro.localRetorno || '';
-    saidaPersonalizada = registro.saidaRetornoDiferente ? (registro.localSaida || '') : '';
-    retornoPersonalizada = registro.saidaRetornoDiferente ? (registro.localRetorno || '') : '';
+    inputLocalDestinoNumero.value = registro.localDestinoNumero || '';
     inputNumeroProtocolo.value = registro.protocolo || '';
     inputDescricao.value = registro.descricao || '';
-
-    if (registro.distanciaKm) {
-      exibirDistancia(registro.distanciaKm);
-    } else {
-      limparDistanciaCalculada();
-    }
 
     renderClienteSelect(registro.nome);
     atualizarLinhaNovoCliente();
@@ -559,16 +510,20 @@
     const id = inputEditingId.value || gerarId();
     const dados = {
       id,
-      dataHora: dataHoraInputParaIso(inputDataRegistro.value, inputHoraRegistro.value),
+      // A hora não é mais digitada: serviço novo usa a hora do momento em que salvou,
+      // edição mantém a hora que já estava gravada.
+      dataHora: dataHoraInputParaIso(
+        inputDataRegistro.value,
+        inputEditingId.value ? inputHoraRegistro.value : agoraParaHoraInput()
+      ),
       placa: inputPlacaVeiculo.value.trim().toUpperCase(),
       valorFrete: valorMascaradoParaNumero(inputValorFrete.value),
+      valorPedagio: valorMascaradoParaNumero(inputValorPedagio.value),
       pago: inputServicoPago.checked,
-      saidaRetornoDiferente: inputSaidaRetornoDiferente.checked,
-      localSaida: inputLocalSaida.value.trim(),
       localOrigem: inputLocalOrigem.value.trim(),
+      localOrigemNumero: inputLocalOrigemNumero.value.trim(),
       localDestino: inputLocalDestino.value.trim(),
-      localRetorno: inputLocalRetorno.value.trim(),
-      distanciaKm: distanciaCalculadaKm,
+      localDestinoNumero: inputLocalDestinoNumero.value.trim(),
       nome,
       protocolo: inputNumeroProtocolo.value.trim(),
       descricao: inputDescricao.value.trim(),
@@ -622,15 +577,22 @@
     }[c]));
   }
 
+  function formatarLocalComNumero(local, numero) {
+    if (!local) return '';
+    return numero ? `${local}, ${numero}` : local;
+  }
+
   function agruparPorNome(registros) {
     const grupos = new Map();
     registros.forEach(r => {
       const chave = r.nome.toLowerCase();
       if (!grupos.has(chave)) {
-        grupos.set(chave, { nome: r.nome, total: 0, qtd: 0 });
+        grupos.set(chave, { nome: r.nome, total: 0, frete: 0, pedagio: 0, qtd: 0 });
       }
       const g = grupos.get(chave);
-      g.total += r.valorFrete;
+      g.total += valorTotal(r);
+      g.frete += Number(r.valorFrete) || 0;
+      g.pedagio += valorPedagio(r);
       g.qtd += 1;
     });
     return [...grupos.values()].sort((a, b) => b.total - a.total);
@@ -664,12 +626,11 @@
     linhas.push(`📅 ${formatarDataHora(r.dataHora)}`);
     if (r.protocolo) linhas.push(`🔖 Protocolo: ${r.protocolo}`);
     if (r.placa) linhas.push(`🚗 Placa: ${r.placa}`);
-    if (r.localSaida) linhas.push(`🏁 Saída: ${r.localSaida}`);
-    if (r.localOrigem) linhas.push(`📍 Retirada: ${r.localOrigem}`);
-    if (r.localDestino) linhas.push(`📍 Entrega: ${r.localDestino}`);
-    if (r.localRetorno) linhas.push(`🏁 Retorno: ${r.localRetorno}`);
-    if (r.distanciaKm) linhas.push(`🛣️ Distância percorrida: ${r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`);
-    linhas.push(`💰 Valor do frete: ${formatarMoeda(r.valorFrete)}`);
+    if (r.localOrigem) linhas.push(`📍 Retirada: ${formatarLocalComNumero(r.localOrigem, r.localOrigemNumero)}`);
+    if (r.localDestino) linhas.push(`📍 Entrega: ${formatarLocalComNumero(r.localDestino, r.localDestinoNumero)}`);
+    linhas.push(`🚚 Frete: ${formatarMoeda(r.valorFrete)}`);
+    linhas.push(`🛣️ Pedágio: ${formatarMoeda(valorPedagio(r))}`);
+    linhas.push(`💰 *Total: ${formatarMoeda(valorTotal(r))}*`);
     if (r.descricao) {
       linhas.push('');
       linhas.push('📝 Observações:');
@@ -727,11 +688,12 @@
     const campos = [{ label: 'Cliente', valor: r.nome }, { label: 'Data e hora', valor: formatarDataHora(r.dataHora) }];
     if (r.protocolo) campos.push({ label: 'Nº do protocolo', valor: r.protocolo });
     if (r.placa) campos.push({ label: 'Placa', valor: r.placa });
-    if (r.localSaida) campos.push({ label: 'Saída', valor: r.localSaida });
-    if (r.localOrigem) campos.push({ label: 'Onde pegou', valor: r.localOrigem });
-    if (r.localDestino) campos.push({ label: 'Onde deixou', valor: r.localDestino });
-    if (r.localRetorno) campos.push({ label: 'Retorno', valor: r.localRetorno });
-    if (r.distanciaKm) campos.push({ label: 'Distância percorrida', valor: `${r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km` });
+    const origem = formatarLocalComNumero(r.localOrigem, r.localOrigemNumero);
+    if (origem) campos.push({ label: 'Onde pegou', valor: origem });
+    const destino = formatarLocalComNumero(r.localDestino, r.localDestinoNumero);
+    if (destino) campos.push({ label: 'Onde deixou', valor: destino });
+    campos.push({ label: 'Valor do frete', valor: formatarMoeda(r.valorFrete) });
+    campos.push({ label: 'Pedágio', valor: formatarMoeda(valorPedagio(r)) });
 
     const logoBytes = await obterLogoBytes();
     const bytes = await PdfExport.gerarBytesServico({
@@ -739,8 +701,8 @@
       subtitulo: `Gerado em ${new Date().toLocaleString('pt-BR')}`,
       campos,
       descricaoTexto: r.descricao || null,
-      valorLabel: 'Valor do frete',
-      valorTexto: formatarMoeda(r.valorFrete),
+      valorLabel: 'Valor total',
+      valorTexto: formatarMoeda(valorTotal(r)),
     });
 
     const blob = new Blob([bytes], { type: 'application/pdf' });
@@ -787,7 +749,7 @@
         || (r.localDestino || '').toLowerCase().includes(termo))
       .filter(r => passaFiltroPeriodo(r.dataHora, periodo, dataDeLista.value, dataAteLista.value))
       .filter(r => passaFiltroCliente(r, clienteFiltro))
-      .filter(r => passaFiltroValor(r.valorFrete, valorMin, valorMax))
+      .filter(r => passaFiltroValor(valorTotal(r), valorMin, valorMax))
       .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
   }
 
@@ -799,16 +761,14 @@
       <div class="registro-card" data-id="${r.id}">
         <div class="linha-topo">
           <span class="nome">${escapeHtml(r.nome)}</span>
-          <span class="valor">${formatarMoeda(r.valorFrete)}</span>
+          <span class="valor">${formatarMoeda(valorTotal(r))}</span>
         </div>
+        <div class="valores-detalhe">Frete ${formatarMoeda(r.valorFrete)} · Pedágio ${formatarMoeda(valorPedagio(r))}</div>
         <div class="data">${formatarDataHora(r.dataHora)}${r.placa ? ` · ${escapeHtml(r.placa)}` : ''}${r.protocolo ? ` · Protocolo: ${escapeHtml(r.protocolo)}` : ''} · <button type="button" class="badge-pago btn-toggle-pago ${r.pago ? 'pago' : 'nao-pago'}" data-id="${r.id}">${r.pago ? 'Pago' : 'Não pago'}</button></div>
-        ${(r.localSaida || r.localOrigem || r.localDestino || r.localRetorno || r.distanciaKm) ? `
+        ${(r.localOrigem || r.localDestino) ? `
         <div class="trajeto">
-          ${r.localSaida ? `<div><span class="rotulo">Saída:</span> ${escapeHtml(r.localSaida)}</div>` : ''}
-          ${r.localOrigem ? `<div><span class="rotulo">Pegou em:</span> ${escapeHtml(r.localOrigem)}</div>` : ''}
-          ${r.localDestino ? `<div><span class="rotulo">Deixou em:</span> ${escapeHtml(r.localDestino)}</div>` : ''}
-          ${r.localRetorno ? `<div><span class="rotulo">Retorno:</span> ${escapeHtml(r.localRetorno)}</div>` : ''}
-          ${r.distanciaKm ? `<div><span class="rotulo">Distância:</span> ${escapeHtml(r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 }))} km</div>` : ''}
+          ${r.localOrigem ? `<div><span class="rotulo">Pegou em:</span> ${escapeHtml(formatarLocalComNumero(r.localOrigem, r.localOrigemNumero))}</div>` : ''}
+          ${r.localDestino ? `<div><span class="rotulo">Deixou em:</span> ${escapeHtml(formatarLocalComNumero(r.localDestino, r.localDestinoNumero))}</div>` : ''}
         </div>` : ''}
         ${r.descricao ? `<div class="descricao">${escapeHtml(r.descricao)}</div>` : ''}
         <div class="card-acoes">
@@ -878,7 +838,7 @@
     return getRegistros()
       .filter(r => passaFiltroPeriodo(r.dataHora, periodo, dataDeRelatorio.value, dataAteRelatorio.value))
       .filter(r => passaFiltroClienteMultiplo(r, clientesFiltroRelatorio))
-      .filter(r => passaFiltroValor(r.valorFrete, valorMin, valorMax))
+      .filter(r => passaFiltroValor(valorTotal(r), valorMin, valorMax))
       .filter(r => passaFiltroPago(r, pagoRelatorio.value));
   }
 
@@ -892,10 +852,14 @@
       return;
     }
 
-    const totalGeral = registros.reduce((soma, r) => soma + r.valorFrete, 0);
+    const somas = somarValores(registros);
     relatorioResumo.innerHTML = `
-      <div class="total-valor">${formatarMoeda(totalGeral)}</div>
+      <div class="total-valor">${formatarMoeda(somas.total)}</div>
       <div class="total-label">${registros.length} serviço${registros.length !== 1 ? 's' : ''} no período</div>
+      <div class="total-detalhe">
+        <div><span>Frete</span><strong>${formatarMoeda(somas.frete)}</strong></div>
+        <div><span>Pedágio</span><strong>${formatarMoeda(somas.pedagio)}</strong></div>
+      </div>
     `;
 
     const gruposOrdenados = agruparPorNome(registros);
@@ -905,6 +869,7 @@
         <div>
           <div class="grupo-nome">${escapeHtml(g.nome)}</div>
           <div class="grupo-qtd">${g.qtd} serviço${g.qtd !== 1 ? 's' : ''}</div>
+          <div class="grupo-detalhe">Frete ${formatarMoeda(g.frete)} · Pedágio ${formatarMoeda(g.pedagio)}</div>
         </div>
         <div class="grupo-valor">${formatarMoeda(g.total)}</div>
       </div>
@@ -924,19 +889,24 @@
   // ---------- Relatório: mensagem consolidada e exportação ----------
 
   function montarTextoRelatorio(registros) {
-    const totalGeral = registros.reduce((soma, r) => soma + r.valorFrete, 0);
+    const somas = somarValores(registros);
     const ordenados = [...registros].sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
 
     const linhas = ['*Relatório de Serviços – J Batista*', ''];
     ordenados.forEach(r => {
       const data = new Date(r.dataHora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       const identificacao = r.placa ? `${r.nome} (${r.placa})` : r.nome;
-      linhas.push(`${data} — ${identificacao}: ${formatarMoeda(r.valorFrete)}`);
-      if (r.localOrigem) linhas.push(`   📍 Retirada: ${r.localOrigem}`);
-      if (r.localDestino) linhas.push(`   📍 Destino: ${r.localDestino}`);
+      linhas.push(`${data} — ${identificacao}: ${formatarMoeda(valorTotal(r))}`);
+      linhas.push(`   Frete ${formatarMoeda(r.valorFrete)} + Pedágio ${formatarMoeda(valorPedagio(r))}`);
+      const origem = formatarLocalComNumero(r.localOrigem, r.localOrigemNumero);
+      const destino = formatarLocalComNumero(r.localDestino, r.localDestinoNumero);
+      if (origem) linhas.push(`   📍 Retirada: ${origem}`);
+      if (destino) linhas.push(`   📍 Destino: ${destino}`);
     });
     linhas.push('');
-    linhas.push(`💰 *Total: ${formatarMoeda(totalGeral)}* (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`);
+    linhas.push(`🚚 Frete: ${formatarMoeda(somas.frete)}`);
+    linhas.push(`🛣️ Pedágio: ${formatarMoeda(somas.pedagio)}`);
+    linhas.push(`💰 *Total: ${formatarMoeda(somas.total)}* (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`);
     return linhas.join('\n');
   }
 
@@ -955,15 +925,16 @@
     { titulo: 'Cliente', largura: 24 },
     { titulo: 'Protocolo', largura: 14 },
     { titulo: 'Placa', largura: 10 },
-    { titulo: 'Valor', largura: 13 },
-    { titulo: 'Saída', largura: 30 },
+    { titulo: 'Frete', largura: 13 },
+    { titulo: 'Pedágio', largura: 12 },
+    { titulo: 'Total', largura: 13 },
     { titulo: 'Origem', largura: 30 },
+    { titulo: 'Nº Origem', largura: 9 },
     { titulo: 'Destino', largura: 30 },
-    { titulo: 'Retorno', largura: 30 },
-    { titulo: 'Distância (km)', largura: 12 },
+    { titulo: 'Nº Destino', largura: 9 },
     { titulo: 'Descrição', largura: 40 },
   ];
-  const INDICE_COLUNA_VALOR_EXCEL = 5;
+  const COLUNAS_VALOR_EXCEL = [5, 6, 7]; // Frete, Pedágio, Total
 
   function montarLinhasExcel(registros) {
     return registros.map(r => {
@@ -974,12 +945,13 @@
         r.nome,
         r.protocolo || '',
         r.placa || '',
-        r.valorFrete,
-        r.localSaida || '',
+        Number(r.valorFrete) || 0,
+        valorPedagio(r),
+        valorTotal(r),
         r.localOrigem || '',
+        r.localOrigemNumero || '',
         r.localDestino || '',
-        r.localRetorno || '',
-        r.distanciaKm ? r.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '',
+        r.localDestinoNumero || '',
         r.descricao || '',
       ];
     });
@@ -987,12 +959,12 @@
 
   // Calcula a largura de cada coluna com base no maior conteúdo (cabeçalho ou dado),
   // para nenhuma coluna cortar texto na exportação.
-  function calcularLargurasExcel(colunas, linhas, colunaValor) {
+  function calcularLargurasExcel(colunas, linhas, colunasValor) {
     return colunas.map((coluna, indice) => {
       let maiorTamanho = coluna.titulo.length;
       linhas.forEach(linha => {
         const valor = linha[indice];
-        const texto = indice === colunaValor ? formatarMoeda(valor) : String(valor == null ? '' : valor);
+        const texto = colunasValor.includes(indice) ? formatarMoeda(valor) : String(valor == null ? '' : valor);
         if (texto.length > maiorTamanho) maiorTamanho = texto.length;
       });
       return Math.min(Math.max(maiorTamanho + 2, 8), 60);
@@ -1014,10 +986,10 @@
       mostrarToast('Nada para exportar.');
       return;
     }
-    const totalGeral = registros.reduce((soma, r) => soma + r.valorFrete, 0);
+    const somas = somarValores(registros);
     const ordenados = [...registros].sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     const linhasExcel = montarLinhasExcel(ordenados);
-    const larguras = calcularLargurasExcel(COLUNAS_EXCEL, linhasExcel, INDICE_COLUNA_VALOR_EXCEL);
+    const larguras = calcularLargurasExcel(COLUNAS_EXCEL, linhasExcel, COLUNAS_VALOR_EXCEL);
     const colunasAjustadas = COLUNAS_EXCEL.map((c, i) => ({ titulo: c.titulo, largura: larguras[i] }));
 
     const bytes = XlsxLite.gerarBytes({
@@ -1025,8 +997,8 @@
       subtitulo: `${periodoDescricaoRelatorio()}  ·  Gerado em ${new Date().toLocaleString('pt-BR')}`,
       colunas: colunasAjustadas,
       linhas: linhasExcel,
-      colunaValor: INDICE_COLUNA_VALOR_EXCEL,
-      totalValor: totalGeral,
+      colunasValor: COLUNAS_VALOR_EXCEL,
+      totaisValor: [somas.frete, somas.pedagio, somas.total],
       totalRotulo: `TOTAL (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`,
     });
     const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1039,16 +1011,18 @@
   });
 
   const COLUNAS_PDF_RELATORIO = [
-    { titulo: 'Data', largura: 58 },
-    { titulo: 'Cliente', largura: 100 },
-    { titulo: 'Protocolo', largura: 62 },
-    { titulo: 'Placa', largura: 46 },
-    { titulo: 'Origem', largura: 110 },
-    { titulo: 'Destino', largura: 110 },
-    { titulo: 'Descrição', largura: 197 },
-    { titulo: 'Valor', largura: 86.89 },
+    { titulo: 'Data', largura: 54 },
+    { titulo: 'Cliente', largura: 92 },
+    { titulo: 'Protocolo', largura: 58 },
+    { titulo: 'Placa', largura: 54 },
+    { titulo: 'Origem', largura: 100 },
+    { titulo: 'Destino', largura: 100 },
+    { titulo: 'Descrição', largura: 81.89 },
+    { titulo: 'Frete', largura: 76 },
+    { titulo: 'Pedágio', largura: 70 },
+    { titulo: 'Total', largura: 84 },
   ];
-  const INDICE_COLUNA_VALOR_PDF = 7;
+  const COLUNAS_VALOR_PDF = [7, 8, 9]; // Frete, Pedágio, Total
 
   function montarLinhasPdfRelatorio(registros) {
     return registros.map(r => [
@@ -1056,10 +1030,12 @@
       r.nome,
       r.protocolo || '',
       r.placa || '',
-      r.localOrigem || '',
-      r.localDestino || '',
+      formatarLocalComNumero(r.localOrigem, r.localOrigemNumero),
+      formatarLocalComNumero(r.localDestino, r.localDestinoNumero),
       r.descricao || '',
       formatarMoeda(r.valorFrete),
+      formatarMoeda(valorPedagio(r)),
+      formatarMoeda(valorTotal(r)),
     ]);
   }
 
@@ -1068,7 +1044,7 @@
       mostrarToast('Nada para exportar.');
       return;
     }
-    const totalGeral = registros.reduce((soma, r) => soma + r.valorFrete, 0);
+    const somas = somarValores(registros);
     const ordenados = [...registros].sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
     const logoBytes = await obterLogoBytes();
 
@@ -1077,8 +1053,8 @@
       subtitulo: `${periodoDescricaoRelatorio()}  ·  Gerado em ${new Date().toLocaleString('pt-BR')}`,
       colunas: COLUNAS_PDF_RELATORIO,
       linhas: montarLinhasPdfRelatorio(ordenados),
-      colunaValor: INDICE_COLUNA_VALOR_PDF,
-      totalTexto: formatarMoeda(totalGeral),
+      colunasValor: COLUNAS_VALOR_PDF,
+      totaisTexto: [formatarMoeda(somas.frete), formatarMoeda(somas.pedagio), formatarMoeda(somas.total)],
       totalRotulo: `TOTAL (${registros.length} serviço${registros.length !== 1 ? 's' : ''})`,
     });
     const blob = new Blob([bytes], { type: 'application/pdf' });
@@ -1139,74 +1115,103 @@
   // ---------- Gráficos do dashboard (Chart.js) ----------
 
   let chartFaturamento = null;
-  let chartRanking = null;
 
   function corDoTema(variavel) {
     return getComputedStyle(document.documentElement).getPropertyValue(variavel).trim();
   }
 
-  // Plugin do Chart.js: escreve o valor de cada barra do ranking ao lado dela.
-  const pluginRotuloRanking = {
-    id: 'rotuloRanking',
-    afterDatasetsDraw(chart) {
-      const { ctx } = chart;
-      const meta = chart.getDatasetMeta(0);
-      ctx.save();
-      ctx.fillStyle = corDoTema('--text-dark');
-      ctx.font = "700 12px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      meta.data.forEach((barra, i) => {
-        const valor = chart.data.datasets[0].data[i];
-        ctx.fillText(formatarMoeda(valor), barra.x + 6, barra.y);
-      });
-      ctx.restore();
-    },
-  };
+  function formatarMoedaCurta(valor) {
+    if (valor >= 1000) {
+      return 'R$ ' + (valor / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
+    }
+    return 'R$ ' + Math.round(valor).toLocaleString('pt-BR');
+  }
+
+  // Monta as colunas do gráfico: um dia por coluna (semana/mês) ou um mês por coluna (todo o período).
+  function colunasGraficoDashboard(registros) {
+    const periodo = periodoDashboard.value;
+    if (periodo === 'hoje') return null;
+
+    if (periodo === 'tudo') {
+      if (!registros.length) return null;
+      const datas = registros.map(r => new Date(r.dataHora));
+      const fim = new Date(Math.max(...datas));
+      let inicio = new Date(Math.min(...datas));
+      // no máximo os últimos 12 meses com movimento
+      const limite = new Date(fim.getFullYear(), fim.getMonth() - 11, 1);
+      if (inicio < limite) inicio = limite;
+      const colunas = [];
+      for (let d = new Date(inicio.getFullYear(), inicio.getMonth(), 1); d <= fim; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+        const chave = `${d.getFullYear()}-${d.getMonth()}`;
+        colunas.push({
+          chave,
+          rotulo: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+          titulo: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+          pertence: (r) => { const x = new Date(r.dataHora); return `${x.getFullYear()}-${x.getMonth()}` === chave; },
+          atual: false,
+        });
+      }
+      return { titulo: 'Faturamento por mês', colunas };
+    }
+
+    const dias = intervaloDiasDashboard();
+    const hoje = new Date().toDateString();
+    const usaDiaDaSemana = dias.length <= 8;
+    return {
+      titulo: 'Faturamento por dia',
+      colunas: dias.map(d => ({
+        rotulo: usaDiaDaSemana ? d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') : String(d.getDate()),
+        titulo: d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }),
+        pertence: (r) => new Date(r.dataHora).toDateString() === d.toDateString(),
+        atual: d.toDateString() === hoje,
+      })),
+    };
+  }
 
   function renderGraficoDashboard(registros) {
-    const dias = (periodoDashboard.value === 'hoje' || periodoDashboard.value === 'tudo') ? [] : intervaloDiasDashboard();
-    if (!dias.length) {
+    const estrutura = colunasGraficoDashboard(registros);
+    if (!estrutura) {
       dashboardGrafico.hidden = true;
       dashboardGrafico.innerHTML = '';
       if (chartFaturamento) { chartFaturamento.destroy(); chartFaturamento = null; }
       return;
     }
 
-    const totais = dias.map(d => registros
-      .filter(r => new Date(r.dataHora).toDateString() === d.toDateString())
-      .reduce((soma, r) => soma + r.valorFrete, 0));
+    const { colunas } = estrutura;
+    const dados = colunas.map(c => {
+      const doDia = registros.filter(c.pertence);
+      const somas = somarValores(doDia);
+      return { ...somas, qtd: doDia.length };
+    });
+    const fretes = dados.map(d => d.frete);
+    const pedagios = dados.map(d => d.pedagio);
+    const indiceAtual = colunas.findIndex(c => c.atual);
 
-    const agora = new Date();
-    const hojeStr = agora.toDateString();
-    const indiceHoje = dias.findIndex(d => d.toDateString() === hojeStr);
-    const temHoje = indiceHoje !== -1;
-    const usaDiaDaSemana = dias.length <= 8;
-
-    const corBase = corDoTema('--chart-navy');
-    const corDestaque = corDoTema('--gold-500');
+    const corFrete = corDoTema('--chart-navy');
+    const corPedagio = corDoTema('--gold-500');
     const corGrade = corDoTema('--chart-grid');
     const corMuted = corDoTema('--text-muted');
-
-    const rotulos = dias.map(d => usaDiaDaSemana
-      ? d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
-      : String(d.getDate()));
-    const cores = dias.map((d, i) => i === indiceHoje ? corDestaque : corBase);
+    const corTexto = corDoTema('--text-dark');
+    const superficie = '#ffffff';
 
     dashboardGrafico.hidden = false;
     dashboardGrafico.innerHTML = `
-      <div class="grafico-cabecalho">
-        <span class="grafico-titulo">Faturamento por dia</span>
-        ${temHoje ? '<span class="grafico-legenda"><span class="ponto"></span>hoje</span>' : ''}
+      <div class="card-cabecalho">
+        <div class="card-titulo">${escapeHtml(estrutura.titulo)}</div>
+        <div class="legenda">
+          <span><i style="background:${corFrete}"></i>Frete</span>
+          <span><i style="background:${corPedagio}"></i>Pedágio</span>
+        </div>
       </div>
-      <div class="grafico-canvas-wrap"><canvas id="canvasFaturamento"></canvas></div>
+      <div class="grafico-canvas-wrap"><canvas id="canvasFaturamento" aria-label="${escapeHtml(estrutura.titulo)}"></canvas></div>
       <div class="grafico-caption" id="graficoCaption">&nbsp;</div>
     `;
 
     const mostrarCaption = (i) => {
-      const label = dias[i].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const d = dados[i];
+      const titulo = colunas[i].titulo.charAt(0).toUpperCase() + colunas[i].titulo.slice(1);
       document.getElementById('graficoCaption').innerHTML =
-        `<strong>${escapeHtml(label)}</strong> — ${escapeHtml(formatarMoeda(totais[i]))}`;
+        `<div class="caption-titulo"><span>${escapeHtml(titulo)}</span><strong>${formatarMoeda(d.total)}</strong></div>`;
     };
 
     const ctx = document.getElementById('canvasFaturamento').getContext('2d');
@@ -1214,73 +1219,162 @@
     chartFaturamento = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: rotulos,
-        datasets: [{ data: totais, backgroundColor: cores, borderRadius: 4, borderSkipped: false, maxBarThickness: 22 }],
+        labels: colunas.map(c => c.rotulo),
+        datasets: [
+          {
+            label: 'Frete',
+            data: fretes,
+            backgroundColor: corFrete,
+            // só arredonda o topo quando não tem pedágio empilhado em cima
+            borderRadius: (c) => (pedagios[c.dataIndex] > 0 ? 0 : { topLeft: 4, topRight: 4 }),
+            borderSkipped: false,
+            maxBarThickness: 18,
+            stack: 'valor',
+          },
+          {
+            label: 'Pedágio',
+            data: pedagios,
+            backgroundColor: corPedagio,
+            borderColor: superficie,
+            // 2px de respiro entre frete e pedágio
+            borderWidth: (c) => (pedagios[c.dataIndex] > 0 ? { bottom: 2, top: 0, left: 0, right: 0 } : 0),
+            borderRadius: { topLeft: 4, topRight: 4 },
+            borderSkipped: false,
+            maxBarThickness: 18,
+            stack: 'valor',
+          },
+        ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 200 },
+        animation: { duration: 250 },
+        interaction: { mode: 'index', intersect: false },
         onClick: (evt, elems) => { if (elems.length) mostrarCaption(elems[0].index); },
+        onHover: (evt, elems) => { if (elems.length) mostrarCaption(elems[0].index); },
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: corDoTema('--navy-900'),
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: true,
+            boxPadding: 4,
             callbacks: {
-              title: (items) => dias[items[0].dataIndex].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-              label: (item) => formatarMoeda(item.parsed.y),
+              title: (items) => colunas[items[0].dataIndex].titulo,
+              label: (item) => `${item.dataset.label}: ${formatarMoeda(item.parsed.y)}`,
+              footer: (items) => {
+                const d = dados[items[0].dataIndex];
+                return `Total: ${formatarMoeda(d.total)}`;
+              },
             },
           },
         },
         scales: {
-          x: { grid: { display: false }, border: { display: false }, ticks: { color: corMuted, font: { size: 10 }, autoSkip: true, maxRotation: 0 } },
-          y: { display: false, beginAtZero: true, grid: { color: corGrade } },
+          x: {
+            stacked: true,
+            grid: { display: false },
+            border: { color: corGrade },
+            ticks: {
+              autoSkip: true,
+              maxRotation: 0,
+              color: (c) => (c.index === indiceAtual ? corTexto : corMuted),
+              font: (c) => ({ size: 10, weight: c.index === indiceAtual ? '800' : '400' }),
+            },
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            border: { display: false },
+            grid: { color: corGrade, drawTicks: false },
+            ticks: { color: corMuted, font: { size: 10 }, maxTicksLimit: 4, padding: 6, callback: (v) => formatarMoedaCurta(v) },
+          },
         },
       },
     });
 
-    mostrarCaption(temHoje ? indiceHoje : totais.indexOf(Math.max(...totais)));
+    let inicial = indiceAtual;
+    if (inicial === -1 || !dados[inicial].qtd) {
+      const totais = dados.map(d => d.total);
+      inicial = totais.indexOf(Math.max(...totais));
+    }
+    mostrarCaption(inicial);
   }
 
+  // Ranking de clientes em HTML: barras horizontais, uma cor só, maior primeiro.
   function renderRankingDashboard(registros) {
-    const grupos = agruparPorNome(registros).slice(0, 8);
-
-    if (!grupos.length) {
+    const todos = agruparPorNome(registros);
+    if (!todos.length) {
       dashboardRanking.innerHTML = '';
-      if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
       return;
     }
+    let grupos = todos.slice(0, 5);
+    const resto = todos.slice(5);
+    if (resto.length) {
+      grupos = grupos.concat([{
+        nome: `Outros (${resto.length})`,
+        total: resto.reduce((s, g) => s + g.total, 0),
+        qtd: resto.reduce((s, g) => s + g.qtd, 0),
+      }]);
+    }
+    const maior = Math.max(...grupos.map(g => g.total)) || 1;
 
-    const altura = grupos.length * 34 + 16;
-    dashboardRanking.innerHTML = `<div class="ranking-chart-wrap" style="height:${altura}px"><canvas id="canvasRanking"></canvas></div>`;
+    dashboardRanking.innerHTML = `
+      <div class="card-cabecalho">
+        <div class="card-titulo">Por cliente</div>
+      </div>
+      <div class="ranking-lista">
+        ${grupos.map(g => `
+          <div class="ranking-item" title="${escapeHtml(g.nome)}: ${escapeHtml(formatarMoeda(g.total))}">
+            <div class="ranking-linha">
+              <span class="ranking-nome">${escapeHtml(g.nome)}</span>
+              <span class="ranking-valor">${formatarMoeda(g.total)}</span>
+            </div>
+            <div class="ranking-trilho"><div class="ranking-barra" style="width:${Math.max(2, (g.total / maior) * 100)}%"></div></div>
+          </div>`).join('')}
+      </div>
+    `;
+  }
 
-    const cor = corDoTema('--chart-navy');
-    const corTexto = corDoTema('--text-dark');
-    const maiorValor = grupos[0].total;
-
-    const ctx = document.getElementById('canvasRanking').getContext('2d');
-    if (chartRanking) chartRanking.destroy();
-    chartRanking = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: grupos.map(g => g.nome),
-        datasets: [{ data: grupos.map(g => g.total), backgroundColor: cor, borderRadius: 4, borderSkipped: false, maxBarThickness: 20 }],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 200 },
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (item) => formatarMoeda(item.parsed.x) } },
-        },
-        scales: {
-          x: { display: false, suggestedMax: maiorValor * 1.35 },
-          y: { grid: { display: false }, border: { display: false }, ticks: { color: corTexto, font: { size: 12, weight: '600' } } },
-        },
-      },
-      plugins: [pluginRotuloRanking],
+  // Faturamento por dia da semana. O dia mais forte fica em destaque.
+  function renderSemanaDashboard(registros) {
+    if (periodoDashboard.value === 'hoje' || registros.length < 2) {
+      dashboardSemana.hidden = true;
+      dashboardSemana.innerHTML = '';
+      return;
+    }
+    const nomes = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    const nomesLongos = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+    const contagem = [0, 0, 0, 0, 0, 0, 0];
+    const valores = [0, 0, 0, 0, 0, 0, 0];
+    registros.forEach(r => {
+      const dia = new Date(r.dataHora).getDay();
+      contagem[dia] += 1;
+      valores[dia] += valorTotal(r);
     });
+    const ordem = [1, 2, 3, 4, 5, 6, 0]; // semana começando na segunda
+    const maior = Math.max(...valores);
+    const diaTop = valores.indexOf(maior);
+    const valorCurto = (v) => {
+      if (!v) return '';
+      if (v >= 1000) return (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
+      return Math.round(v).toLocaleString('pt-BR');
+    };
+
+    dashboardSemana.hidden = false;
+    dashboardSemana.innerHTML = `
+      <div class="card-cabecalho">
+        <div class="card-titulo">Faturamento por dia da semana</div>
+      </div>
+      <div class="semana-colunas">
+        ${ordem.map(i => `
+          <div class="semana-coluna${i === diaTop ? ' destaque' : ''}" title="${nomesLongos[i]}: ${escapeHtml(formatarMoeda(valores[i]))} · ${contagem[i]} serviço${contagem[i] !== 1 ? 's' : ''}">
+            <span class="semana-qtd">${valorCurto(valores[i])}</span>
+            <div class="semana-trilho"><div class="semana-barra" style="height:${maior ? (valores[i] / maior) * 100 : 0}%"></div></div>
+            <span class="semana-nome">${nomes[i]}</span>
+          </div>`).join('')}
+      </div>
+    `;
   }
 
   function renderDashboard() {
@@ -1292,155 +1386,187 @@
       dashboardGrafico.hidden = true;
       dashboardGrafico.innerHTML = '';
       dashboardRanking.innerHTML = '';
+      dashboardSemana.hidden = true;
+      dashboardSemana.innerHTML = '';
       if (chartFaturamento) { chartFaturamento.destroy(); chartFaturamento = null; }
-      if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
       return;
     }
 
-    const total = registros.reduce((soma, r) => soma + r.valorFrete, 0);
-    const ticketMedio = total / registros.length;
+    const somas = somarValores(registros);
+    const ticketMedio = somas.total / registros.length;
+    const pagos = registros.filter(r => r.pago);
+    const recebido = somarValores(pagos).total;
+    const aReceber = Math.round((somas.total - recebido) * 100) / 100;
+    const pctRecebido = somas.total ? (recebido / somas.total) * 100 : 0;
 
     dashboardStats.innerHTML = `
-      <div class="stat-tile"><div class="stat-valor">${formatarMoeda(total)}</div><div class="stat-label">Faturado</div></div>
-      <div class="stat-tile"><div class="stat-valor">${registros.length}</div><div class="stat-label">Serviços</div></div>
-      <div class="stat-tile"><div class="stat-valor">${formatarMoeda(ticketMedio)}</div><div class="stat-label">Ticket médio</div></div>
+      <div class="hero-faturado">
+        <div class="hero-rotulo">Faturado</div>
+        <div class="hero-valor">${formatarMoeda(somas.total)}</div>
+        <div class="recebimento">
+          <div class="recebimento-barra" role="img" aria-label="Recebido ${Math.round(pctRecebido)}%">
+            ${recebido > 0 ? `<span class="seg-recebido" style="flex-grow:${recebido}"></span>` : ''}
+            ${aReceber > 0 ? `<span class="seg-areceber" style="flex-grow:${aReceber}"></span>` : ''}
+          </div>
+          <div class="recebimento-legenda">
+            <span><i class="seg-recebido"></i>Recebido <strong>${formatarMoeda(recebido)}</strong></span>
+            <span><i class="seg-areceber"></i>A receber <strong>${formatarMoeda(aReceber)}</strong></span>
+          </div>
+        </div>
+        <div class="hero-kpis">
+          <div>
+            <div class="hero-kpi-rotulo">Serviços</div>
+            <div class="hero-kpi-valor">${registros.length}</div>
+          </div>
+          <div>
+            <div class="hero-kpi-rotulo">Ticket médio</div>
+            <div class="hero-kpi-valor">${formatarMoeda(ticketMedio)}</div>
+          </div>
+          <div>
+            <div class="hero-kpi-rotulo">Pedágio</div>
+            <div class="hero-kpi-valor">${formatarMoeda(somas.pedagio)}</div>
+          </div>
+        </div>
+      </div>
     `;
 
     renderGraficoDashboard(registros);
     renderRankingDashboard(registros);
+    renderSemanaDashboard(registros);
   }
 
   periodoDashboard.addEventListener('change', renderDashboard);
   pagoDashboard.addEventListener('change', renderDashboard);
 
-  // ---------- Google Maps: autocomplete de endereço e cálculo de distância ----------
-  // Só funciona com internet disponível e a chave configurada em js/maps-config.js;
-  // sem isso, os campos continuam digitáveis normalmente, só sem sugestão/distância.
+  // ---------- Autocomplete de endereço (busca online via OpenStreetMap/Nominatim) ----------
+  // Só funciona com internet disponível; sem conexão, o campo continua digitável normalmente.
+  // A busca é priorizada (não restrita) para o litoral centro-norte de SC através de um "viewbox",
+  // e o resultado exibido/salvo é resumido para "Rua, Cidade - UF" em vez do endereço completo.
 
-  // Cobre a faixa do litoral onde a empresa opera (Tijucas até Bombinhas). É só uma
-  // preferência de busca (bias), não restringe resultados de outras regiões.
-  const LIMITES_LITORAL = { south: -27.40, west: -48.75, north: -26.85, east: -48.45 };
+  // Cobre a faixa do litoral onde a empresa opera (Tijucas até Bombinhas). Como bounded=0, é só
+  // uma preferência: buscas em outras regiões continuam funcionando normalmente.
+  const LITORAL_VIEWBOX = '-48.75,-26.85,-48.45,-27.40'; // lon_min,lat_max,lon_max,lat_min
 
-  const CAMPOS_ENDERECO = [inputLocalSaida, inputLocalOrigem, inputLocalDestino, inputLocalRetorno];
+  // Cidades do litoral centro-norte de SC que devem aparecer primeiro nas sugestões.
+  // Itapema tem prioridade máxima (0); as demais vêm logo em seguida (1); o resto fica por último (2).
+  const PRIORIDADE_CIDADES = new Map([
+    ['itapema', 0],
+    ['balneario camboriu', 1], ['camboriu', 1], ['itajai', 1], ['navegantes', 1],
+    ['tijucas', 1], ['porto belo', 1], ['bombinhas', 1], ['governador celso ramos', 1],
+  ]);
 
-  let directionsService = null;
-  let distanciaCalculadaKm = null;
-
-  function limparDistanciaCalculada() {
-    distanciaCalculadaKm = null;
-    rotaDistanciaResultado.hidden = true;
-    rotaDistanciaResultado.textContent = '';
+  function normalizarTexto(str) {
+    return (str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 
-  function exibirDistancia(km) {
-    distanciaCalculadaKm = km;
-    rotaDistanciaResultado.hidden = false;
-    rotaDistanciaResultado.textContent =
-      `Distância total percorrida: ${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
-  }
-
-  // O Google chama window.gm_authFailure quando a chave é rejeitada (não habilitada
-  // para o domínio atual, API desligada no projeto, billing ausente, etc.). Isso
-  // acontece de forma assíncrona, independente do onload do <script>, então o
-  // handler precisa estar registrado antes do script ser injetado.
-  window.gm_authFailure = function () {
-    console.error(
-      `Google Maps: chave de API recusada (gm_authFailure). Verifique no Google Cloud ` +
-      `Console se "Maps JavaScript API" e "Places API" estão habilitadas para o projeto ` +
-      `e se ${window.location.origin} está na lista de referrers HTTP permitidos da chave.`
-    );
-    mostrarToast('Google Maps recusou a chave de API — endereços seguem digitáveis manualmente (veja detalhes no console).');
+  const SIGLAS_ESTADOS = {
+    'Acre': 'AC', 'Alagoas': 'AL', 'Amapá': 'AP', 'Amazonas': 'AM', 'Bahia': 'BA', 'Ceará': 'CE',
+    'Distrito Federal': 'DF', 'Espírito Santo': 'ES', 'Goiás': 'GO', 'Maranhão': 'MA', 'Mato Grosso': 'MT',
+    'Mato Grosso do Sul': 'MS', 'Minas Gerais': 'MG', 'Pará': 'PA', 'Paraíba': 'PB', 'Paraná': 'PR',
+    'Pernambuco': 'PE', 'Piauí': 'PI', 'Rio de Janeiro': 'RJ', 'Rio Grande do Norte': 'RN',
+    'Rio Grande do Sul': 'RS', 'Rondônia': 'RO', 'Roraima': 'RR', 'Santa Catarina': 'SC',
+    'São Paulo': 'SP', 'Sergipe': 'SE', 'Tocantins': 'TO',
   };
 
-  function carregarGoogleMaps() {
-    return new Promise((resolve, reject) => {
-      if (window.google && window.google.maps && window.google.maps.places) { resolve(); return; }
-      const chave = window.GOOGLE_MAPS_API_KEY;
-      if (!chave || !navigator.onLine) { reject(new Error('Google Maps indisponível')); return; }
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(chave)}&libraries=places`;
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Falha ao carregar Google Maps'));
-      document.head.appendChild(script);
-    });
+  function formatarEnderecoResumido(addr) {
+    if (!addr) return '';
+    const rua = addr.road || addr.pedestrian || addr.residential || addr.suburb || '';
+    const cidade = addr.city || addr.town || addr.village || addr.municipality || '';
+    const uf = SIGLAS_ESTADOS[addr.state] || '';
+    const cidadeUf = [cidade, uf].filter(Boolean).join(' - ');
+    return [rua, cidadeUf].filter(Boolean).join(', ');
   }
 
-  function anexarAutocompleteEndereco(input, bounds, aoSelecionar) {
-    const autocomplete = new google.maps.places.Autocomplete(input, {
-      componentRestrictions: { country: 'br' },
-      fields: ['formatted_address'],
-      bounds,
-    });
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place && place.formatted_address) input.value = place.formatted_address;
-      if (aoSelecionar) aoSelecionar();
-    });
+  const listaOrigem = document.getElementById('listaOrigem');
+  const listaDestino = document.getElementById('listaDestino');
+  const statusOrigem = document.getElementById('statusOrigem');
+  const statusDestino = document.getElementById('statusDestino');
+
+  function esconderSugestoes(listaEl) {
+    listaEl.hidden = true;
+    listaEl.innerHTML = '';
   }
 
-  function configurarAutocompleteGoogle() {
-    if (!window.google || !google.maps || !google.maps.places) {
-      throw new Error('Biblioteca "places" do Google Maps não carregou — confirme se a Places API está habilitada para a chave.');
-    }
-    const bounds = new google.maps.LatLngBounds(
-      { lat: LIMITES_LITORAL.south, lng: LIMITES_LITORAL.west },
-      { lat: LIMITES_LITORAL.north, lng: LIMITES_LITORAL.east }
-    );
-    CAMPOS_ENDERECO.forEach(input => anexarAutocompleteEndereco(input, bounds, limparDistanciaCalculada));
-    anexarAutocompleteEndereco(inputEnderecoBaseConfig, bounds, null);
+  async function buscarEnderecos(termo, signal) {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8'
+      + '&countrycodes=br&accept-language=pt-BR&viewbox=' + LITORAL_VIEWBOX + '&bounded=0'
+      + '&q=' + encodeURIComponent(termo);
+    const resp = await fetch(url, { signal });
+    if (!resp.ok) throw new Error('Falha na busca de endereço');
+    return resp.json();
   }
 
-  CAMPOS_ENDERECO.forEach(input => {
-    input.addEventListener('input', limparDistanciaCalculada);
-  });
+  function configurarAutocomplete(input, statusEl, listaEl, numeroInput) {
+    let debounceTimer = null;
+    let abortController = null;
 
-  async function calcularDistanciaRota() {
-    const pontos = CAMPOS_ENDERECO.map(input => input.value.trim()).filter(Boolean);
-    if (pontos.length < 2) {
-      mostrarToast('Preencha ao menos dois endereços para calcular a distância.');
-      return;
-    }
-    if (!window.google || !window.google.maps) {
-      mostrarToast('Google Maps indisponível. Verifique sua conexão.');
-      return;
-    }
+    input.addEventListener('input', () => {
+      const termo = input.value.trim();
+      clearTimeout(debounceTimer);
+      if (abortController) abortController.abort();
+      esconderSugestoes(listaEl);
 
-    if (!directionsService) directionsService = new google.maps.DirectionsService();
-    const origem = pontos[0];
-    const destino = pontos[pontos.length - 1];
-    const waypoints = pontos.slice(1, -1).map(location => ({ location, stopover: true }));
-
-    directionsService.route({
-      origin: origem,
-      destination: destino,
-      waypoints,
-      optimizeWaypoints: false,
-      travelMode: google.maps.TravelMode.DRIVING,
-    }, (resultado, status) => {
-      if (status === 'OK' && resultado.routes[0]) {
-        const metros = resultado.routes[0].legs.reduce((soma, leg) => soma + leg.distance.value, 0);
-        const km = metros / 1000;
-        exibirDistancia(km);
-        const config = getConfig();
-        if (config.valorPorKm) {
-          inputValorFrete.value = formatarCentavos(Math.round(km * config.valorPorKm * 100));
-          mostrarToast('Distância calculada! Valor do frete sugerido preenchido.');
-        } else {
-          mostrarToast('Distância calculada!');
-        }
-      } else {
-        mostrarToast('Não foi possível calcular a rota entre os endereços informados.');
+      if (termo.length < 4) {
+        statusEl.textContent = '';
+        return;
       }
+      if (!navigator.onLine) {
+        statusEl.textContent = 'Sem internet — digite o endereço manualmente';
+        return;
+      }
+
+      statusEl.textContent = 'Buscando endereço...';
+      debounceTimer = setTimeout(async () => {
+        abortController = new AbortController();
+        try {
+          const resultados = await buscarEnderecos(termo, abortController.signal);
+          if (input.value.trim() !== termo) return; // usuário já digitou algo novo
+
+          const opcoes = resultados
+            .map(r => {
+              const cidade = normalizarTexto(r.address && (r.address.city || r.address.town || r.address.village || r.address.municipality));
+              return {
+                texto: formatarEnderecoResumido(r.address),
+                numero: (r.address && r.address.house_number) || '',
+                prioridade: PRIORIDADE_CIDADES.has(cidade) ? PRIORIDADE_CIDADES.get(cidade) : 2,
+              };
+            })
+            .filter(o => o.texto)
+            .sort((a, b) => a.prioridade - b.prioridade)
+            .slice(0, 5);
+
+          if (!opcoes.length) {
+            statusEl.textContent = 'Nenhum endereço encontrado';
+            return;
+          }
+          statusEl.textContent = '';
+          listaEl.innerHTML = opcoes.map((o, i) =>
+            `<button type="button" data-i="${i}">${escapeHtml(o.texto)}</button>`
+          ).join('');
+          listaEl.hidden = false;
+          listaEl.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const opcao = opcoes[Number(btn.dataset.i)];
+              input.value = opcao.texto;
+              if (opcao.numero && !numeroInput.value) numeroInput.value = opcao.numero;
+              esconderSugestoes(listaEl);
+              statusEl.textContent = '';
+            });
+          });
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+          statusEl.textContent = 'Não foi possível buscar agora';
+        }
+      }, 600);
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => esconderSugestoes(listaEl), 150);
     });
   }
 
-  btnCalcularDistancia.addEventListener('click', calcularDistanciaRota);
-
-  carregarGoogleMaps().then(configurarAutocompleteGoogle).catch(erro => {
-    console.warn('Google Maps não carregado — endereços seguem digitáveis manualmente, sem autocomplete/distância.', erro);
-    if (navigator.onLine) mostrarToast(`Google Maps indisponível: ${erro.message}`);
-  });
+  configurarAutocomplete(inputLocalOrigem, statusOrigem, listaOrigem, inputLocalOrigemNumero);
+  configurarAutocomplete(inputLocalDestino, statusDestino, listaDestino, inputLocalDestinoNumero);
 
   // ---------- Placa em maiúsculas ----------
 

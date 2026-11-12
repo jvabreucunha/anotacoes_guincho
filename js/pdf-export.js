@@ -162,11 +162,15 @@
    * @param {number} dados.colunaValor - índice (0-based) da coluna alinhada à direita
    * @param {string} dados.totalTexto - ex: "R$ 3.347,00"
    * @param {string} dados.totalRotulo - ex: "TOTAL (13 serviços)"
+   * @param {number[]} [dados.colunasValor] - várias colunas de moeda (substitui colunaValor)
+   * @param {string[]} [dados.totaisTexto] - total de cada coluna em colunasValor; o último sai em destaque
    */
   async function gerarBytesRelatorio(dados) {
     const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
     const CORES = cores(rgb);
     const { logoBytes, subtitulo, colunas, linhas, colunaValor, totalTexto, totalRotulo } = dados;
+    const colunasValor = dados.colunasValor || [colunaValor];
+    const totaisTexto = dados.totaisTexto || [totalTexto];
 
     const pdfDoc = await PDFDocument.create();
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -192,7 +196,7 @@
       paginaAtual.drawRectangle({ x: margem, y: y - alturaCabecalhoTabela, width: larguraConteudo, height: alturaCabecalhoTabela, color: CORES.navy900 });
       colunas.forEach((c, i) => {
         const texto = truncar(fontBold, c.titulo, 9, c.largura - 10);
-        const direita = i === colunaValor;
+        const direita = colunasValor.includes(i);
         const xTexto = direita
           ? xColunas[i] + c.largura - 6 - fontBold.widthOfTextAtSize(texto, 9)
           : xColunas[i] + 6;
@@ -248,7 +252,7 @@
       }
       linhasPorColuna.forEach((linsColuna, i) => {
         const c = colunas[i];
-        const direita = i === colunaValor;
+        const direita = colunasValor.includes(i);
         linsColuna.forEach((textoLinha, li) => {
           const xTexto = direita
             ? xColunas[i] + c.largura - 6 - fontRegular.widthOfTextAtSize(textoLinha, 9)
@@ -265,14 +269,18 @@
 
     paginaAtual.drawRectangle({ x: margem, y: y - alturaTotal, width: larguraConteudo, height: alturaTotal, color: CORES.navy900 });
     paginaAtual.drawText(totalRotulo, { x: margem + 10, y: y - alturaTotal + 8, size: 10, font: fontBold, color: CORES.branco });
-    const colValor = colunas[colunaValor];
-    const larguraTotalTexto = fontBold.widthOfTextAtSize(totalTexto, 12);
-    paginaAtual.drawText(totalTexto, {
-      x: xColunas[colunaValor] + colValor.largura - 6 - larguraTotalTexto,
-      y: y - alturaTotal + 7,
-      size: 12,
-      font: fontBold,
-      color: CORES.gold400,
+    colunasValor.forEach((indiceColuna, k) => {
+      const ehUltimo = k === colunasValor.length - 1;
+      const tamanho = ehUltimo ? 11 : 9;
+      const texto = totaisTexto[k];
+      const colValor = colunas[indiceColuna];
+      paginaAtual.drawText(texto, {
+        x: xColunas[indiceColuna] + colValor.largura - 6 - fontBold.widthOfTextAtSize(texto, tamanho),
+        y: y - alturaTotal + 8,
+        size: tamanho,
+        font: fontBold,
+        color: ehUltimo ? CORES.gold400 : CORES.branco,
+      });
     });
 
     const paginas = pdfDoc.getPages();

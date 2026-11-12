@@ -226,9 +226,13 @@
    * @param {number} dados.colunaValor - índice (0-based) da coluna de valor (moeda)
    * @param {number} dados.totalValor - soma a exibir na linha de total
    * @param {string} dados.totalRotulo - rótulo da linha de total (ex: "TOTAL (12 serviços)")
+   * @param {number[]} [dados.colunasValor] - várias colunas de moeda (substitui colunaValor)
+   * @param {number[]} [dados.totaisValor] - soma de cada coluna em colunasValor, na mesma ordem
    */
   function gerarBytes(dados) {
     const { titulo, subtitulo, colunas, linhas, colunaValor, totalValor, totalRotulo } = dados;
+    const colunasValor = dados.colunasValor || [colunaValor];
+    const totaisValor = dados.totaisValor || [totalValor];
     const numColunas = colunas.length;
     const ultimaColuna = colunaParaLetra(numColunas - 1);
 
@@ -250,7 +254,7 @@
     linhas.forEach((linha, idx) => {
       const numeroLinha = primeiraLinhaDados + idx;
       const celulas = linha.map((valor, colIdx) => {
-        if (colIdx === colunaValor) return celulaNumero(colIdx, numeroLinha, valor, 5);
+        if (colunasValor.includes(colIdx)) return celulaNumero(colIdx, numeroLinha, Number(valor) || 0, 5);
         return celulaTexto(colIdx, numeroLinha, valor == null ? '' : String(valor), 4);
       }).join('');
       partesLinhas.push(`<row r="${numeroLinha}">${celulas}</row>`);
@@ -258,7 +262,8 @@
 
     const celulasTotal = [celulaTexto(0, linhaTotal, totalRotulo, 6)];
     for (let i = 1; i < numColunas; i++) {
-      if (i === colunaValor) celulasTotal.push(celulaNumero(i, linhaTotal, totalValor, 7));
+      const k = colunasValor.indexOf(i);
+      if (k >= 0) celulasTotal.push(celulaNumero(i, linhaTotal, totaisValor[k], 7));
       else celulasTotal.push(`<c r="${refCelula(i, linhaTotal)}" s="6"/>`);
     }
     partesLinhas.push(`<row r="${linhaTotal}">${celulasTotal.join('')}</row>`);
